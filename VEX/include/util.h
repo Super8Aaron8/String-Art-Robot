@@ -1,4 +1,4 @@
-#include "vex.h"
+#include "main.h"
 
 int clamp(int &num, int lower, int upper);
 

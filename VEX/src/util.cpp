@@ -1,4 +1,5 @@
 #include "util.h"
+#include "vex.h"
 
 int clamp(int &num, int lower, int upper) {
   if (num > upper) {
