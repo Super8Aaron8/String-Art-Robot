@@ -38,8 +38,6 @@ enum Sling { IN, CW, CCW };
 enum Pids { PKP, PKD, SKP, SKD };
 enum RawConfig {
   SLOTS,    // 1 to 8
-  TIME2,    // 1 to 9 * 10
-  TIME1,    // 1 to 9 * 1
   LINES4,   // 1 to 9 * 1000
   LINES3,   // 1 to 9 * 100
   LINES2,   // 1 to 9 * 10
@@ -74,7 +72,7 @@ enum Config {
 // PIN1        | 1 to 120 (DON'T USE 10 OR 13)
 // PIN2        | 1 to 120 (DON'T USE 10 OR 13)
 
-const int RAWCONFIGNUM = 19, CONFIGNUM = 9, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 500;
+const int RAWCONFIGNUM = 17, CONFIGNUM = 9, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 500;
 const double PINRATIO = 288.0 * 0.25;
 const double pid[4] = {1, 1, 1, 1};
 
@@ -104,7 +102,6 @@ void loadFile(int &state, int points[], int config[]) { // TODO Add slots
       wait(25, msec);
     }
     config[SLOT] = rawConfig[SLOTS];
-    config[TIME] = (10 * rawConfig[TIME2]) + (1 * rawConfig[TIME1]);
     config[LINES] = (1000 * rawConfig[LINES4]) + (100 * rawConfig[LINES3]) +
                     (10 * rawConfig[LINES2]) + (1 * rawConfig[LINES1]);
     config[COLORS] = (10 * rawConfig[COLORS2]) + (1 * rawConfig[COLORS1]);

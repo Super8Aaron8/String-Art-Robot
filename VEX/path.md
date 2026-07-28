@@ -1,6 +1,6 @@
 # Current Path Route
 
-SLOT 1 | TIME 30 | LINES 30 | COLORS 3
+SLOT 1 | LINES 30 | COLORS 3
 
 | Line | Dir | Pin | Pin1 | Pin2 | Color |
 |-----:|-----|----:|-----:|-----:|-------|
