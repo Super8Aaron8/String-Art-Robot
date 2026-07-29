@@ -489,14 +489,9 @@ void motorTest()
   }
 }
 
-
-
-
-
-void moveplatter(double target, double &position, double backlashDeletionDegrees,double leftOffset)
+void moveplatter(double positionTarget, double &position, double backlashDeletionDegrees, double leftOffset)
 {
-double positionTarget = 0;
-double leadingTarget = 0;
+  double leadingTarget = 0;
   double laggingTarget = 0;
   int direction = 1;
   int fastSpeed = 20;
@@ -507,151 +502,154 @@ double leadingTarget = 0;
   bool isthere1 = false;
   bool isthere2 = false;
   bool isthere3 = false;
-  int prevnail = 0;
-  int dist = 0;
-  prevnail = dnormalize(position, 1440.0, false);
-  if(prevnail<0)
-  prevnail +=1440;
-  prevnail = prevnail/5;
+  /* int prevnail = 0;
+   int dist = 0;
+   prevnail = dnormalize(position, 1440.0, false);
+   if(prevnail<0)
+   prevnail +=1440;
+   prevnail = prevnail/5;
 
-  dist = target-prevnail;
+   dist = target-prevnail;
 
-  if (fabs(dist)>(fabs(target+288-prevnail)))
-  dist = target+288-prevnail;
-  if (fabs(dist)>(fabs(target-288)-prevnail))
-  dist = (target-288)-prevnail;
+   if (fabs(dist)>(fabs(target+288-prevnail)))
+   dist = target+288-prevnail;
+   if (fabs(dist)>(fabs(target-288)-prevnail))
+   dist = (target-288)-prevnail;
 
-  positionTarget = position+dist*5;
-  
+   positionTarget = position+dist*5;
+   */
   // figure out how to find prevnail prevnail = 0;
-  //figure out how to turn prevnail, target, current position into positiontarget
-  
+  // figure out how to turn prevnail, target, current position into positiontarget
 
-
-  
   if (position > positionTarget)
     direction = -1;
 
   else
     direction = 1;
-position = target;
-leadingTarget = positionTarget + direction*backlashDeletionDegrees;
+  position = positionTarget;
+  leadingTarget = positionTarget + direction * backlashDeletionDegrees;
   laggingTarget = positionTarget;
 
-if (direction == -1)
-{
-  leadingTarget+=leftOffset;
-  laggingTarget+=leftOffset;
-}
+  if (direction == -1)
+  {
+    leadingTarget += leftOffset;
+    laggingTarget += leftOffset;
+  }
 
-
-
-if(fabs(PMotor3.position(degrees) - laggingTarget) > midDist){
-PMotor1.spin(forward, direction*fastSpeed, percent);
-  PMotor2.spin(forward, direction*fastSpeed, percent);
-  PMotor3.spin(forward, direction*fastSpeed, percent);
-}
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
+  {
+    PMotor1.spin(forward, direction * fastSpeed, percent);
+    PMotor2.spin(forward, direction * fastSpeed, percent);
+    PMotor3.spin(forward, direction * fastSpeed, percent);
+  }
   // slow down when close (make this a PID later if u want)
   while (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
   {
   }
-  if(fabs(PMotor3.position(degrees) - laggingTarget) > slowDist){
-  PMotor1.spin(forward, direction*midSpeed, percent);
-  PMotor2.spin(forward, direction*midSpeed, percent);
-  PMotor3.spin(forward, direction*midSpeed, percent);
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
+  {
+    PMotor1.spin(forward, direction * midSpeed, percent);
+    PMotor2.spin(forward, direction * midSpeed, percent);
+    PMotor3.spin(forward, direction * midSpeed, percent);
   }
   while (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
   {
   }
-   PMotor1.spin(forward, direction*slowSpeed, percent);
-  PMotor2.spin(forward, direction*slowSpeed, percent);
-  PMotor3.spin(forward, direction*slowSpeed, percent);
+  PMotor1.spin(forward, direction * slowSpeed, percent);
+  PMotor2.spin(forward, direction * slowSpeed, percent);
+  PMotor3.spin(forward, direction * slowSpeed, percent);
 
- // for (int count = 0; count < 3;count++)
-  
-    
-while (!(isthere1==true&&isthere2==true&&isthere3==true)){
+  // for (int count = 0; count < 3;count++)
 
+  while (!(isthere1 == true && isthere2 == true && isthere3 == true))
+  {
 
-    if (direction*(PMotor1.position(degrees) - leadingTarget) > 0)
+    if (direction * (PMotor1.position(degrees) - leadingTarget) > 0)
     {
       isthere1 = true;
       PMotor1.stop(brake);
     }
-    if (direction*(PMotor2.position(degrees) - leadingTarget) > 0)
+    if (direction * (PMotor2.position(degrees) - leadingTarget) > 0)
     {
       isthere2 = true;
       PMotor2.stop(brake);
     }
-    if (direction*(PMotor3.position(degrees) - laggingTarget) > 0)
+    if (direction * (PMotor3.position(degrees) - laggingTarget) > 0)
     {
       isthere3 = true;
       PMotor3.stop(brake);
     }
   }
-
-
-
 }
 
 void zeroplatter(double backlashDeletionDegrees, double &leftOffset, double &position)
 {
-double index = 0.1;
-bool correct = false;
+  double index = 0.5;
+  bool correct = false;
 
-//instruct user to add bumper
-PMotor3.setPosition(0, degrees);
-PMotor2.setPosition(0, degrees);
-PMotor1.setPosition(0, degrees);
+  // instruct user to add bumper
+  PMotor3.setPosition(0, degrees);
+  PMotor2.setPosition(0, degrees);
+  PMotor1.setPosition(0, degrees);
 
+  while (!Bumper.pressing())
+  {
+    moveplatter(index, position, backlashDeletionDegrees, 0);
+    index += 0.5;
+  }
 
-while(!Brain.buttonCheck.pressing()){
-moveplatter(index, position, backlashDeletionDegrees, 0);
-index+=0.1;
+  PMotor3.setPosition(0, degrees);
+  PMotor1.setPosition(backlashDeletionDegrees, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees, degrees);
+  index = 0.5;
+  wait(5, seconds);
+  // instruct user to remove bumper
+  while (correct == false)
+  {
+
+    while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonRight.pressing())
+      {
+      }
+
+      moveplatter(index, position, backlashDeletionDegrees, 0);
+      index += 0.5;
+    }
+  }
+  PMotor3.setPosition(0, degrees);
+  PMotor1.setPosition(backlashDeletionDegrees, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees, degrees);
+  wait(3, seconds);
+  moveplatter(25, position, backlashDeletionDegrees, 0);
+
+  index = 25;
+  correct = false;
+  while (correct == false)
+  {
+    while (!(Brain.buttonLeft.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonLeft.pressing())
+      {
+      }
+
+      moveplatter(index, position, backlashDeletionDegrees, 0);
+      index -= 0.5;
+    }
+  }
+  leftOffset = PMotor3.position(degrees);
+  Brain.Screen.print("%.2f", leftOffset);
 }
-
-PMotor3.setPosition(0, degrees);
-PMotor1.setPosition(backlashDeletionDegrees, degrees);
-PMotor2.setPosition(backlashDeletionDegrees, degrees);
-index = 0.1;
-wait(5, seconds);
-//instruct user to remove bumper
-while(correct == false){
-
-while(!(Brain.buttonRight.pressing()||Brain.buttonCheck.pressing())){}
-if(Brain.buttonCheck.pressing())
-correct = true;
-else {
-while(Brain.buttonRight.pressing()){}
-
-moveplatter(index, position, backlashDeletionDegrees, 0);
-index+=0.1;
-}
-} 
-PMotor3.setPosition(0, degrees);
-PMotor1.setPosition(backlashDeletionDegrees, degrees);
-PMotor2.setPosition(backlashDeletionDegrees, degrees);
-wait(3, seconds);
-moveplatter(5, position, backlashDeletionDegrees, 0);
-
-index = 5;
-correct = false;
-while(correct == false){
-while(!(Brain.buttonLeft.pressing()||Brain.buttonCheck.pressing())){}
-if(Brain.buttonCheck.pressing())
-correct = true;
-else {
-while(Brain.buttonLeft.pressing()){}
-
-moveplatter(index, position, backlashDeletionDegrees, 0);
-index-=0.1;
-}
-} 
-leftOffset = PMotor3.position(degrees);
-Brain.Screen.print("%.2f",leftOffset);
-}
-
-
 
 /*
 void moveplatterto(double offsets[8], double BacklashDeletionDegrees, double positionTarget)
@@ -753,7 +751,7 @@ void moveplatterto(double offsets[8], double BacklashDeletionDegrees, double pos
 }
 */
 
-    void calibrateplatter(int ALOTOFSTUFFGOESHERE)
+void calibrateplatter(int ALOTOFSTUFFGOESHERE)
 {
 
   // move with no offsets, normal backlash deletion til u hit bumber
@@ -793,47 +791,46 @@ void moveplatterto(double offsets[8], double BacklashDeletionDegrees, double pos
 
 int main()
 {
-double leftOffset = 0;
-double position = 0;
+  double leftOffset = 0;
+  double position = 0;
 
+  wait(3, seconds);
+  zeroplatter(3, leftOffset, position);
+  wait(3, seconds);
+  moveplatter(25, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(150, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(300, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(0, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(-5, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(-10, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(-15, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(25, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(0, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(150, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(-150, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(0, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(900, position, 3, leftOffset);
+  wait(3, seconds);
+  moveplatter(905, position, 3, leftOffset);
 
-wait(3, seconds);
-zeroplatter(3, leftOffset, position);
-wait(3, seconds);
-moveplatter(25, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(150, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(300, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(0, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(-5, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(-10, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(-15, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(25, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(0, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(150, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(-150, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(0, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(900, position, 3, leftOffset);
-wait(3, seconds);
-moveplatter(905, position, 3, leftOffset);
-
-//moveplatterright(720, 3);
-/*for (int count = 0; count<720; count++){
-moveplatterright(count, 3);
-wait(1, seconds);
-  }
-*/
+  // moveplatterright(720, 3);
+  /*for (int count = 0; count<720; count++){
+  moveplatterright(count, 3);
+  wait(1, seconds);
+    }
+  */
   /*
   int state = CALIBRATE;
   double position[2] = {0, 0};
@@ -848,7 +845,7 @@ wait(1, seconds);
   printf("Calibrate\n");
   loadFile(state, points, config);
   printf("LoadFile\n");
-  
+
   // thread motorThread = thread(motorTest);
 
   while (true)
@@ -875,7 +872,5 @@ wait(1, seconds);
     wait(10, msec);
   }
     */
-
-    
 }
 // thisisanedit
