@@ -30,13 +30,52 @@ optical Optical3 = optical(PORT9);
 optical Optical4 = optical(PORT10);
 optical Optical5 = optical(PORT11);
 
-enum Status { INSERTSD, CALIBRATE, MENU, START, RUNNING, CHANGETHREAD, NOTHREAD, FINISH, ERROR };
-enum Button { CHECK, RIGHT, LEFT };
-enum Progress { LINE, PROGRESS, CURRENTCOLOR, FUTURECOLOR, ENDTIME };
-enum Position { PMOTORS, SMOTOR };
-enum Sling { IN, CW, CCW };
-enum Pids { PKP, PKD, SKP, SKD };
-enum RawConfig {
+enum Status
+{
+  INSERTSD,
+  CALIBRATE,
+  MENU,
+  START,
+  RUNNING,
+  CHANGETHREAD,
+  NOTHREAD,
+  FINISH,
+  ERROR
+};
+enum Button
+{
+  CHECK,
+  RIGHT,
+  LEFT
+};
+enum Progress
+{
+  LINE,
+  PROGRESS,
+  CURRENTCOLOR,
+  FUTURECOLOR,
+  ENDTIME
+};
+enum Position
+{
+  PMOTORS,
+  SMOTOR
+};
+enum Sling
+{
+  IN,
+  CW,
+  CCW
+};
+enum Pids
+{
+  PKP,
+  PKD,
+  SKP,
+  SKD
+};
+enum RawConfig
+{
   SLOTS,    // 1 to 8
   TIME2,    // 1 to 9 * 10
   TIME1,    // 1 to 9 * 1
@@ -58,7 +97,8 @@ enum RawConfig {
   LENGTHE1, // 1 to 9, 99 < use 1 to 9 for 2nd digit
 };
 
-enum Config {
+enum Config
+{
   SLOT,
   TIME,
   LINES,
@@ -78,7 +118,8 @@ const int RAWCONFIGNUM = 19, CONFIGNUM = 9, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOI
 const double PINRATIO = 288.0 * 0.25;
 const double pid[4] = {1, 1, 1, 1};
 
-void calibrate(int &state) {
+void calibrate(int &state)
+{
   state = CALIBRATE;
   // BrainInertial.calibrate();
   // while (BrainInertial.isCalibrating()) { wait(25, msec); }
@@ -86,17 +127,23 @@ void calibrate(int &state) {
   // PMotors.resetPosition();
   SMotor.resetPosition();
   TouchLED.on(vex::purple, 100);
-  if (!Brain.SDcard.isInserted()) { state = INSERTSD; }
+  if (!Brain.SDcard.isInserted())
+  {
+    state = INSERTSD;
+  }
   Timer.reset();
 }
 
-void loadFile(int &state, int points[], int config[]) { // TODO Add slots
+void loadFile(int &state, int points[], int config[])
+{ // TODO Add slots
   int rawConfig[RAWCONFIGNUM] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  if (Brain.SDcard.exists("path.txt")) {
+  if (Brain.SDcard.exists("path.txt"))
+  {
     int fileSize = Brain.SDcard.size("path.txt");
     uint8_t buffer[fileSize];
     Brain.SDcard.loadfile("path.txt", buffer, sizeof(buffer));
-    for (int i = 0; i < RAWCONFIGNUM; i++) {
+    for (int i = 0; i < RAWCONFIGNUM; i++)
+    {
       rawConfig[i] = buffer[i];
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Config %d ", i);
@@ -113,35 +160,46 @@ void loadFile(int &state, int points[], int config[]) { // TODO Add slots
     printf("Lines %d\n", config[LINES]);
     printf("Colors %d\n", config[COLORS]);
 
-    for (int i = 0; i < (fileSize - RAWCONFIGNUM); i++) {
+    for (int i = 0; i < (fileSize - RAWCONFIGNUM); i++)
+    {
       points[i] = buffer[i + RAWCONFIGNUM];
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Bit %d ", i);
       printf("%d\n", points[i]);
       wait(25, msec);
     }
-  } else {
+  }
+  else
+  {
     state = INSERTSD;
   }
   state = MENU;
 }
 
-void screen(int &state, int config[], int progress[], double position[]) {
+void screen(int &state, int config[], int progress[], double position[])
+{
   Brain.Screen.clearScreen();
   Brain.Screen.setCursor(1, 1);
-  if (state == INSERTSD) {
+  if (state == INSERTSD)
+  {
     Brain.Screen.print("Insert SD-Card &");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Restart Program");
-  } else if (state == CALIBRATE) {
+  }
+  else if (state == CALIBRATE)
+  {
     Brain.Screen.print("Calibrating and");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Loading Points");
-  } else if (state == MENU) {
+  }
+  else if (state == MENU)
+  {
     Brain.Screen.print("Menu");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Slot:%d", config[SLOT]);
-  } else if (state == START) {
+  }
+  else if (state == START)
+  {
     Brain.Screen.print("Start");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Time:%d", config[TIME]);
@@ -149,7 +207,9 @@ void screen(int &state, int config[], int progress[], double position[]) {
     Brain.Screen.print("Lines:%d", config[LINES]);
     Brain.Screen.setCursor(4, 1);
     Brain.Screen.print("Colors:%d", config[COLORS]);
-  } else if (state == RUNNING) {
+  }
+  else if (state == RUNNING)
+  {
     Brain.Screen.print("Running");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("P:%f", position[PMOTORS]);
@@ -157,62 +217,111 @@ void screen(int &state, int config[], int progress[], double position[]) {
     Brain.Screen.print("S:%f", position[SMOTOR]);
     Brain.Screen.setCursor(4, 1);
     Brain.Screen.print("L:%d", progress[LINE]);
-  } else if (state == CHANGETHREAD) {
+  }
+  else if (state == CHANGETHREAD)
+  {
     Brain.Screen.print("Change Thread");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("To %d", progress[FUTURECOLOR]);
-  } else if (state == NOTHREAD) {
+  }
+  else if (state == NOTHREAD)
+  {
     Brain.Screen.print("Progress");
-  } else if (state == FINISH) {
+  }
+  else if (state == FINISH)
+  {
     Brain.Screen.print("Finished");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("%f", Timer.value());
-  } else {
+  }
+  else
+  {
     Brain.Screen.print("ERROR");
   }
 }
 
-void touchLed(int &state) {
-  if (state == CALIBRATE) {
+void touchLed(int &state)
+{
+  if (state == CALIBRATE)
+  {
     TouchLED.setColor(vex::purple);
-  } else if (state == MENU) {
+  }
+  else if (state == MENU)
+  {
     TouchLED.setColor(vex::blue);
-  } else if (state == START) {
+  }
+  else if (state == START)
+  {
     TouchLED.setBlink(vex::green, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing())
+    {
+      wait(10, msec);
+    }
     state = RUNNING;
     touchLed(state);
-  } else if (state == RUNNING) {
+  }
+  else if (state == RUNNING)
+  {
     TouchLED.setBlink(vex::green, 1, 0);
-  } else if (state == CHANGETHREAD) {
+  }
+  else if (state == CHANGETHREAD)
+  {
     TouchLED.setBlink(vex::yellow, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing())
+    {
+      wait(10, msec);
+    }
     state = RUNNING;
     touchLed(state);
-  } else if (state == NOTHREAD) {
+  }
+  else if (state == NOTHREAD)
+  {
     TouchLED.setBlink(vex::yellow, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing())
+    {
+      wait(10, msec);
+    }
     state = RUNNING;
     touchLed(state);
-  } else if (state == FINISH) {
+  }
+  else if (state == FINISH)
+  {
     TouchLED.setBlink(vex::white, 0.5, 0.5);
-  } else {
+  }
+  else
+  {
     TouchLED.setBlink(vex::red, 0.5, 0.5);
   }
 }
 
-void menu(int &state, int config[]) {
-  while (state == MENU) {
-    if (Brain.buttonRight.pressing()) {
-      while (Brain.buttonRight.pressing()) { wait(10, msec); }
+void menu(int &state, int config[])
+{
+  while (state == MENU)
+  {
+    if (Brain.buttonRight.pressing())
+    {
+      while (Brain.buttonRight.pressing())
+      {
+        wait(10, msec);
+      }
       config[SLOT]++;
       clamp(config[SLOT], 1, SLOTNUM);
-    } else if (Brain.buttonLeft.pressing()) {
-      while (Brain.buttonLeft.pressing()) { wait(10, msec); }
+    }
+    else if (Brain.buttonLeft.pressing())
+    {
+      while (Brain.buttonLeft.pressing())
+      {
+        wait(10, msec);
+      }
       config[SLOT]--;
       clamp(config[SLOT], 1, SLOTNUM);
-    } else if (Brain.buttonCheck.pressing()) {
-      while (Brain.buttonCheck.pressing()) { wait(10, msec); }
+    }
+    else if (Brain.buttonCheck.pressing())
+    {
+      while (Brain.buttonCheck.pressing())
+      {
+        wait(10, msec);
+      }
       state = START;
       clamp(config[SLOT], 1, SLOTNUM);
     }
@@ -220,18 +329,22 @@ void menu(int &state, int config[]) {
   }
 }
 
-void detectThread(int &state) {
-  if (state == RUNNING) {
+void detectThread(int &state)
+{
+  if (state == RUNNING)
+  {
     color nothread = vex::yellow;
     if (Optical1.color() == nothread || Optical2.color() == nothread ||
         Optical3.color() == nothread || Optical4.color() == nothread ||
-        Optical5.color() == nothread) {
+        Optical5.color() == nothread)
+    {
       state = NOTHREAD;
     }
   }
 }
 
-void platterMove(double target) { // TODO finish P controller
+void platterMove(double target)
+{ // TODO finish P controller
   double tar = target / PINRATIO;
   PMotors.setVelocity(100, percent);
   PMotors.spinTo(tar, rev, true);
@@ -259,20 +372,27 @@ void platterMove(double target) { // TODO finish P controller
   // PMotors.stop(hold);
 }
 
-void slingMove(int move) {
-  if (move == IN) {
+void slingMove(int move)
+{
+  if (move == IN)
+  {
     SMotor.setVelocity(100, percent);
     SMotor.spinTo(0, deg, true);
-  } else if (move == CW) {
+  }
+  else if (move == CW)
+  {
     SMotor.setVelocity(100, percent);
     SMotor.spinFor(-180, deg, true);
-  } else if (move == CCW) {
+  }
+  else if (move == CCW)
+  {
     SMotor.setVelocity(100, percent);
     SMotor.spinFor(180, deg, true);
   }
 }
 
-void motorPosition(double position[2]) {
+void motorPosition(double position[2])
+{
   double pos1 = 0, pos2 = 0, pos3 = 0;
   pos1 = PMotor1.position(rev) * PINRATIO;
   pos2 = PMotor2.position(rev) * PINRATIO;
@@ -281,38 +401,54 @@ void motorPosition(double position[2]) {
   position[SMOTOR] = normalize(SMotor.position(deg), 360, false);
 }
 
-void move(int &state, int points[], int config[], int progress[]) {
+void move(int &state, int points[], int config[], int progress[])
+{
   touchLed(state);
   int dir = 0, move = 0;
   while (!(state == INSERTSD || state == ERROR || state == FINISH) &&
-         progress[LINE] < config[LINES]) {
+         progress[LINE] < config[LINES])
+  {
     int i = 3 * progress[LINE];
-    if (state == RUNNING) {
+    if (state == RUNNING)
+    {
       if ((points[i] != 10 && points[i] != 13) || (points[i + 1] != 10 && points[i + 1] != 13) ||
-          (points[i + 2] != 10 && points[i + 2] != 13)) {
-        if (points[i] == 62) {
+          (points[i + 2] != 10 && points[i + 2] != 13))
+      {
+        if (points[i] == 62)
+        {
           dir = CW;
-        } else if (points[i] == 60) {
+        }
+        else if (points[i] == 60)
+        {
           dir = CCW;
-        } else if (points[i] <= 69 && points[i] >= 65) {
+        }
+        else if (points[i] <= 69 && points[i] >= 65)
+        {
           dir = CW;
           progress[FUTURECOLOR] = points[i] - 64;
           state = CHANGETHREAD;
           touchLed(state);
-        } else if (points[i] <= 101 && points[i] >= 97) {
+        }
+        else if (points[i] <= 101 && points[i] >= 97)
+        {
           dir = CCW;
           progress[FUTURECOLOR] = points[i] - 96;
           state = CHANGETHREAD;
           touchLed(state);
-        } else {
+        }
+        else
+        {
           state = ERROR;
         }
-        if (state == RUNNING) {
+        if (state == RUNNING)
+        {
           move = points[i + 1] + points[i + 2];
           platterMove(move);
           slingMove(dir);
         }
-      } else {
+      }
+      else
+      {
         state = ERROR;
       }
       progress[PROGRESS] = 100.0 * (progress[LINE] / config[LINES]);
@@ -324,21 +460,26 @@ void move(int &state, int points[], int config[], int progress[]) {
   state = FINISH;
 }
 
-void motorTest() {
-  while (true) {
-    while (Brain.buttonLeft.pressing()) {
+void motorTest()
+{
+  while (true)
+  {
+    while (Brain.buttonLeft.pressing())
+    {
       platterMove(150);
       slingMove(CCW);
       // PMotor1.spin(forward, 100, percent);
       // wait(10, msec);
     }
-    while (Brain.buttonRight.pressing()) {
+    while (Brain.buttonRight.pressing())
+    {
       platterMove(50);
       slingMove(CW);
       // PMotor2.spin(forward, 100, percent);
       // wait(10, msec);
     }
-    while (Brain.buttonCheck.pressing()) {
+    while (Brain.buttonCheck.pressing())
+    {
       platterMove(25);
       slingMove(IN);
       // PMotor3.spin(forward, 100, percent);
@@ -349,7 +490,8 @@ void motorTest() {
 }
 
 void movePlatter(double positionTarget, double &position, double backlashDeletionDegrees,
-                 double leftOffset) {
+                 double leftOffset)
+{
   const double midDist = 130, slowDist = 10;
   const int fastSpeed = 20, midSpeed = 10, slowSpeed = 2;
   double leadingTarget = 0;
@@ -373,9 +515,12 @@ void movePlatter(double positionTarget, double &position, double backlashDeletio
   // figure out how to find prevnail prevnail = 0;
   // figure out how to turn prevnail, target, current position into positiontarget
 
-  if (position > positionTarget) {
+  if (position > positionTarget)
+  {
     direction = -1;
-  } else {
+  }
+  else
+  {
     direction = 1;
   }
 
@@ -383,53 +528,66 @@ void movePlatter(double positionTarget, double &position, double backlashDeletio
   laggingTarget = positionTarget;
   position = positionTarget;
 
-  if (direction == -1) {
+  if (direction == -1)
+  {
     leadingTarget += leftOffset;
     laggingTarget += leftOffset;
   }
 
   // TODO add pid
-  if (fabs(PMotor3.position(degrees) - laggingTarget) > midDist) {
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
+  {
     PMotors.spin(forward, direction * fastSpeed, percent);
-    while (fabs(PMotor3.position(degrees) - laggingTarget) > midDist) { wait(10, msec); }
+    while (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
+    {
+      wait(10, msec);
+    }
   }
 
-  if (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist) {
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
+  {
     PMotors.spin(forward, direction * midSpeed, percent);
-    while (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist) { wait(10, msec); }
+    while (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
+    {
+      wait(10, msec);
+    }
   }
 
   PMotors.spin(forward, direction * slowSpeed, percent);
 
-  while (isThere1 != true && isThere2 != true && isThere3 != true) {
-    if (direction * (PMotor1.position(degrees) - leadingTarget) > 0) {
+  while (isThere1 != true || isThere2 != true || isThere3 != true)
+  {
+    if (direction * (PMotor1.position(degrees) - leadingTarget) > 0)
+    {
       isThere1 = true;
       PMotor1.stop(brake);
     }
-    if (direction * (PMotor2.position(degrees) - leadingTarget) > 0) {
+    if (direction * (PMotor2.position(degrees) - leadingTarget) > 0)
+    {
       isThere2 = true;
       PMotor2.stop(brake);
     }
-    if (direction * (PMotor3.position(degrees) - laggingTarget) > 0) {
+    if (direction * (PMotor3.position(degrees) - laggingTarget) > 0)
+    {
       isThere3 = true;
       PMotor3.stop(brake);
     }
-    wait(10, msec);
   }
 }
 
-void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset) {
+void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset)
+{
   double index = 0.5;
   bool correct = false;
 
   // instruct user to add bumper
   PMotors.setPosition(0, degrees);
 
-  while (!Bumper.pressing()) {
+  while (!Bumper.pressing())
+  {
     Brain.Screen.print("trying to zero");
     movePlatter(index, position, backlashDeletionDegrees, 0);
     index += 0.5;
-    wait(0.5, seconds);
     Brain.Screen.print("trying to zero");
   }
 
@@ -437,14 +595,21 @@ void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftO
   PMotor1.setPosition(backlashDeletionDegrees, degrees);
   PMotor2.setPosition(backlashDeletionDegrees, degrees);
   index = 0.5;
-  wait(5, seconds);
+  wait(3, seconds);
   // instruct user to remove bumper
-  while (correct == false) {
+  while (correct == false)
+  {
 
-    while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing())) {}
-    if (Brain.buttonCheck.pressing()) correct = true;
-    else {
-      while (Brain.buttonRight.pressing()) {}
+    while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonRight.pressing())
+      {
+      }
 
       movePlatter(index, position, backlashDeletionDegrees, 0);
       index += 0.5;
@@ -454,15 +619,22 @@ void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftO
   PMotor1.setPosition(backlashDeletionDegrees, degrees);
   PMotor2.setPosition(backlashDeletionDegrees, degrees);
   wait(3, seconds);
-  movePlatter(25, position, backlashDeletionDegrees, 0);
+  movePlatter(10, position, backlashDeletionDegrees, 0);
 
-  index = 25;
+  index = 10;
   correct = false;
-  while (correct == false) {
-    while (!(Brain.buttonLeft.pressing() || Brain.buttonCheck.pressing())) {}
-    if (Brain.buttonCheck.pressing()) correct = true;
-    else {
-      while (Brain.buttonLeft.pressing()) {}
+  while (correct == false)
+  {
+    while (!(Brain.buttonLeft.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonLeft.pressing())
+      {
+      }
 
       movePlatter(index, position, backlashDeletionDegrees, 0);
       index -= 0.5;
@@ -504,55 +676,46 @@ you may need to do a funny)
   */
 
 void moveToNail(int target, int maxNails, int &nailPosition, double &position,
-                double backlashDeletionDegrees, double leftOffset) {
+                double backlashDeletionDegrees, double leftOffset)
+{
   int dist = 0;
   double positionTarget = 0;
 
   dist = target - nailPosition;
 
-  if (abs(dist) > (abs(target + maxNails - nailPosition))) dist = target + maxNails - nailPosition;
-  if (abs(dist) > (abs(target - maxNails) - nailPosition))
-    dist = (target - maxNails) - nailPosition;
-  positionTarget = position + dist * 5;
-  nailPosition = target;
+  if (dist != 0)
+  {
+    if (abs(dist) > (abs(target + maxNails - nailPosition)))
+    {
+      dist = target + maxNails - nailPosition;
+    }
+    else if (abs(dist) > (abs((target - maxNails) - nailPosition)))
+    {
+      dist = (target - maxNails) - nailPosition;
+    }
+    positionTarget = position + dist * 5;
+    nailPosition = target;
 
-  movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+    movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+  }
 }
 
-int main() {
+int main()
+{
   double leftOffset = 0;
   double position = 0;
-
+  int nailPosition = 0;
   wait(3, seconds);
   zeroPlatter(position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(25, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(150, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(300, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(0, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(-5, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(-10, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(-15, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(25, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(0, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(150, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(-150, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(0, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(900, position, 3, leftOffset);
-  wait(3, seconds);
-  movePlatter(905, position, 3, leftOffset);
+  moveToNail(5, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(5, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(30, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(60, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(0, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(0, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(283, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(280, 288, nailPosition, position, 3, leftOffset);
+  moveToNail(275, 288, nailPosition, position, 3, leftOffset);
 
   /*
   int state = CALIBRATE;
@@ -595,5 +758,8 @@ int main() {
     wait(10, msec);
   }
     */
-  while (true) { wait(10, msec); }
+  while (true)
+  {
+    wait(10, msec);
+  }
 }
