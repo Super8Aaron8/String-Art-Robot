@@ -491,17 +491,33 @@ you hit bumper measure motor position for both of these, do this again 3 times a
 resulting motor positions set zero for all to position of the lagging motor(if this is being weird
 you may need to do a funny)
 
-instruct user to add a thread, wrap once, tie on an opposite nail
-move to 2 nails ish left of rs offset
-instruct user to click arrow keys until threadwrapper aligns with designated nail
-true lagging position minus intended position is now the offset
-repeat for 2nd and 3rd rs offsets
-go back to zero
-instruct user to pull on thread until taught (note that its not gonna be at the zero)
-go until pretty damn far from ls offset intended
-instruct user to click arrow keys until threadwrapper aligns with designated nail
-ls offset is now true lagging position
-*/
+  instruct user to add a thread, wrap once, tie on an opposite nail
+  move to 2 nails ish left of rs offset
+  instruct user to click arrow keys until threadwrapper aligns with designated nail
+  true lagging position minus intended position is now the offset
+  repeat for 2nd and 3rd rs offsets
+  go back to zero
+  instruct user to pull on thread until taught (note that its not gonna be at the zero)
+  go until pretty damn far from ls offset intended
+  instruct user to click arrow keys until threadwrapper aligns with designated nail
+  ls offset is now true lagging position
+  */
+
+void moveToNail(int target, int maxNails, int &nailPosition, double &position,
+                double backlashDeletionDegrees, double leftOffset) {
+  int dist = 0;
+  double positionTarget = 0;
+
+  dist = target - nailPosition;
+
+  if (abs(dist) > (abs(target + maxNails - nailPosition))) dist = target + maxNails - nailPosition;
+  if (abs(dist) > (abs(target - maxNails) - nailPosition))
+    dist = (target - maxNails) - nailPosition;
+  positionTarget = position + dist * 5;
+  nailPosition = target;
+
+  movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+}
 
 int main() {
   double leftOffset = 0;
