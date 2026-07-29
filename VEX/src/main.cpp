@@ -794,6 +794,26 @@ void calibrateplatter(int ALOTOFSTUFFGOESHERE)
   */
 }
 
+void movetonail(int target, int maxnails, int & nailPosition, double & position, double backlashDeletionDegrees, double leftOffset)
+{
+   int dist = 0;
+   double positionTarget = 0;
+
+
+   dist = target-nailPosition;
+
+   if (abs(dist)>(abs(target+maxnails-nailPosition)))
+   dist = target+maxnails-nailPosition;
+   if (abs(dist)>(abs(target-maxnails)-nailPosition))
+   dist = (target-maxnails)-nailPosition;
+   positionTarget = position+dist*5;
+    nailPosition = target;
+
+   moveplatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+}
+
+
+
 int main()
 {
   Brain.Screen.print("trying to zero");
