@@ -526,9 +526,11 @@ void moveplatter(double positionTarget, double &position, double backlashDeletio
 
   else
     direction = 1;
-  position = positionTarget;
+
   leadingTarget = positionTarget + direction * backlashDeletionDegrees;
   laggingTarget = positionTarget;
+
+  position = positionTarget;
 
   if (direction == -1)
   {
@@ -594,8 +596,11 @@ void zeroplatter(double backlashDeletionDegrees, double &leftOffset, double &pos
 
   while (!Bumper.pressing())
   {
+    Brain.Screen.print("trying to zero");
     moveplatter(index, position, backlashDeletionDegrees, 0);
     index += 0.5;
+    wait(0.5, seconds);
+    Brain.Screen.print("trying to zero");
   }
 
   PMotor3.setPosition(0, degrees);
@@ -791,6 +796,7 @@ void calibrateplatter(int ALOTOFSTUFFGOESHERE)
 
 int main()
 {
+  Brain.Screen.print("trying to zero");
   double leftOffset = 0;
   double position = 0;
 
@@ -872,5 +878,9 @@ int main()
     wait(10, msec);
   }
     */
+  while (true)
+  {
+    wait(10, msec);
+  }
 }
 // thisisanedit
