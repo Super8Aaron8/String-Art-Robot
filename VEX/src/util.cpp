@@ -21,3 +21,16 @@ int normalize(int num, int multiple, bool pos) {
     return num;
   }
 }
+
+double dnormalize(double num, double multiple, bool pos) {
+  if (multiple != 0) {
+    if (pos) {
+      num = fabs(fmod(num, multiple));
+    } else {
+      num = fmod(num, multiple);
+    }
+    return num;
+  } else {
+    return num;
+  }
+}
