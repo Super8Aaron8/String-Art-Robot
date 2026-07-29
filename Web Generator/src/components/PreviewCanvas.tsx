@@ -11,6 +11,7 @@ interface Props {
   radius: number
   results: ColorResult[] | null
   screw: ScrewConfig
+  lineWeight: number
 }
 
 interface View {
@@ -62,7 +63,7 @@ function Screw({ peg, radius }: { peg: Peg; radius: number }) {
   )
 }
 
-export default function PreviewCanvas({ pegs, size, cx, cy, radius, results, screw }: Props) {
+export default function PreviewCanvas({ pegs, size, cx, cy, radius, results, screw, lineWeight }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [view, setView] = useState<View>({ x: 0, y: 0, w: size, h: size })
   const [dragging, setDragging] = useState(false)
@@ -166,7 +167,7 @@ export default function PreviewCanvas({ pegs, size, cx, cy, radius, results, scr
         <rect x={0} y={0} width={size} height={size} fill="#ffffff" />
 
         {colorLines.map((c) => (
-          <g key={c.id} stroke={c.hex} strokeWidth={0.3} strokeOpacity={0.3} strokeLinecap="round">
+          <g key={c.id} stroke={c.hex} strokeWidth={0.3} strokeOpacity={lineWeight} strokeLinecap="round">
             {c.segments.map((s, i) => (
               <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
             ))}

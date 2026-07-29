@@ -245,6 +245,7 @@ export default function App() {
                   radius={radius}
                   results={previewResults}
                   screw={renderScrew}
+                  lineWeight={lineWeight}
                 />
               </div>
 

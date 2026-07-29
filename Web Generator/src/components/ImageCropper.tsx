@@ -31,12 +31,12 @@ export default function ImageCropper({ image, size, transform, contrast, brightn
     drawAdjustedImage(ctx, image, size, transform, contrast, brightness)
 
     ctx.save()
-    ctx.fillStyle = 'rgba(10, 13, 18, 0.6)'
-    ctx.fillRect(0, 0, size, size)
-    ctx.globalCompositeOperation = 'destination-out'
     ctx.beginPath()
+    ctx.rect(0, 0, size, size)
     ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
-    ctx.fill()
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(10, 13, 18, 0.6)'
+    ctx.fill('evenodd')
     ctx.restore()
 
     ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)'
