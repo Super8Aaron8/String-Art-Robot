@@ -8,25 +8,26 @@
 /*                                                                                        */
 /*----------------------------------------------------------------------------------------*/
 
+#include "main.h"
 #include "config.h"
 #include "sensors.h"
 #include "util.h"
 #include "vex.h"
-#include "main.h"
 
 const int RAWCONFIGNUM = 17, CONFIGNUM = 9, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 500;
-const double PINRATIO = 288.0 * 0.25, TOLERANCE = 0.5;
-const double pid[4] = {1, 1, 1, 1};
+const double PINRATIO = 288.0 * 0.25, TOLERANCE = 5, BACKLASH = 3;
+const double pid[4] = {1, 1, 0.6, 1};
 
 void calibrate(int &state) {
   state = CALIBRATE;
   PMotors.resetPosition();
   SMotor.resetPosition();
+  SMotor.stop(hold);
   TouchLED.on(vex::purple, 100);
   if (!Brain.SDcard.isInserted()) { state = INSERTSD; }
   Timer.reset();
-  touchLed(state);
   screen(state);
+  touchLed(state);
 }
 
 void loadFile(int &state, int points[], int config[]) { // TODO add slots
@@ -40,7 +41,7 @@ void loadFile(int &state, int points[], int config[]) { // TODO add slots
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Config %d ", i);
       printf("%d\n", rawConfig[i]);
-      wait(25, msec);
+      wait(5, msec);
     }
     config[SLOT] = rawConfig[SLOTS];
     config[LINES] = (1000 * rawConfig[LINES4]) + (100 * rawConfig[LINES3]) +
@@ -54,16 +55,16 @@ void loadFile(int &state, int points[], int config[]) { // TODO add slots
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Bit %d ", i);
       printf("%d\n", points[i]);
-      wait(25, msec);
+      wait(5, msec);
     }
+    state = MENU;
+    screen(state, config);
+    touchLed(state);
   } else {
     state = INSERTSD;
-    touchLed(state);
     screen(state, config);
+    touchLed(state);
   }
-  state = MENU;
-  touchLed(state);
-  screen(state, config);
 }
 
 void menu(int &state, int config[]) {
@@ -71,17 +72,19 @@ void menu(int &state, int config[]) {
     if (Brain.buttonRight.pressing()) {
       while (Brain.buttonRight.pressing()) { wait(10, msec); }
       config[SLOT]++;
-      clamp(config[SLOT], 1, SLOTNUM);
+      config[SLOT] = clamp(config[SLOT], 1, SLOTNUM);
+      screen(state, config);
     } else if (Brain.buttonLeft.pressing()) {
       while (Brain.buttonLeft.pressing()) { wait(10, msec); }
       config[SLOT]--;
-      clamp(config[SLOT], 1, SLOTNUM);
+      config[SLOT] = clamp(config[SLOT], 1, SLOTNUM);
+      screen(state, config);
     } else if (Brain.buttonCheck.pressing()) {
       while (Brain.buttonCheck.pressing()) { wait(10, msec); }
       state = START;
-      clamp(config[SLOT], 1, SLOTNUM);
-      touchLed(state);
+      config[SLOT] = clamp(config[SLOT], 1, SLOTNUM);
       screen(state, config);
+      touchLed(state);
     }
     wait(25, msec);
   }
@@ -93,7 +96,7 @@ void updateMotorPosition(double position[2]) {
   pos2 = PMotor2.position(rev) * PINRATIO;
   pos3 = PMotor3.position(rev) * PINRATIO;
   position[PMOTORS] = normalize(((pos1 + pos2 + pos3) / 3.0), 288, true);
-  position[SMOTOR] = normalize(SMotor.position(deg), 360, false);
+  position[SMOTOR] = SMotor.position(deg);
 }
 
 double getMotorPosition(int motor = 0) {
@@ -102,7 +105,7 @@ double getMotorPosition(int motor = 0) {
   pos2 = PMotor2.position(rev) * PINRATIO;
   pos3 = PMotor3.position(rev) * PINRATIO;
   ppos = normalize(((pos1 + pos2 + pos3) / 3.0), 288, true);
-  spos = normalize(SMotor.position(deg), 360, false);
+  spos = SMotor.position(deg);
   if (motor == 1) {
     return ppos;
   } else if (motor == 2) {
@@ -111,57 +114,47 @@ double getMotorPosition(int motor = 0) {
   return 0;
 }
 
-void platterMove(double target, double timeout = 1) { 
+void platterMove(double target) {
   double tar = target / PINRATIO;
   PMotors.setVelocity(100, percent);
   PMotors.spinTo(tar, rev, true);
+}
 
-  // TODO finish P controller, dynamic direction changing
-  double delta = target - getMotorPosition(1);
-  double error = delta;
-  int velocity = 100;
-  if (delta > 0) {
-    PMotors.spin(forward);
-  } else {
-    PMotors.spin(reverse);
-  }
-  wait(10, msec);
-  while (Timer.value() < timeout && error >= TOLERANCE && velocity > 10) {
-    error = target - getMotorPosition(1);
-    velocity = 100 * pid[PKP] * abs(error / delta);
-    clamp(velocity, 10, 100);
-    if (error > 0) {
-      PMotors.spin(forward, velocity, pct);
+void slingMove(int dir, int state, int config[], double position[]) {
+  int pos = SMotor.position(deg);
+  int target = pos + (dir * 240);
+  int error = (dir == CW) ? target - pos : pos - target;
+  int velocity = 100, count = 0;
+  while (count <= 5) {
+    pos = SMotor.position(deg);
+    if ((target - pos) > 0) {
+      error = target - pos;
+      dir = CW;
     } else {
-      PMotors.spin(reverse, velocity, pct);
+      error = pos - target;
+      dir = CCW;
     }
+    velocity = clamp((pid[SKP] * error), 0, 100);
+    (velocity > 0) ? SMotor.spin(forward, dir * velocity, pct) : SMotor.stop(hold);
+    screen(state, config, position);
+    (error <= TOLERANCE) ? count++ : count = 0;
+    printf("%d | %d | %d\n", count, error, velocity);
     wait(10, msec);
   }
-  PMotors.stop(hold);
+  SMotor.stop(hold);
+  wait(50, msec);
 }
 
-void slingMove(int move) {
-  if (move == IN) {
-    SMotor.setVelocity(100, percent);
-    SMotor.spinTo(0, deg, true);
-  } else if (move == CW) {
-    SMotor.setVelocity(100, percent);
-    SMotor.spinFor(-180, deg, true);
-  } else if (move == CCW) {
-    SMotor.setVelocity(100, percent);
-    SMotor.spinFor(180, deg, true);
-  }
-}
-
-void move(int &state, int points[], int config[], int progress[]) {
+void move(int &state, int points[], int config[], int progress[], double position[]) {
   touchLed(state);
   int dir = 0, move = 0;
-  while (!(state == INSERTSD || state == ERROR || state == FINISH) &&
-         progress[LINE] < config[LINES]) {
-    int i = 3 * progress[LINE];
+  while ((state != INSERTSD || state != ERROR || state != FINISH) &&
+         (progress[LINE] < config[LINES])) {
+    int i = 4 * progress[LINE];
     if (state == RUNNING) {
       if ((points[i] != 10 && points[i] != 13) || (points[i + 1] != 10 && points[i + 1] != 13) ||
-          (points[i + 2] != 10 && points[i + 2] != 13)) {
+          (points[i + 2] != 10 && points[i + 2] != 13) ||
+          (points[i + 3] != 10 && points[i + 3] != 13)) {
         if (points[i] == 62) {
           dir = CW;
         } else if (points[i] == 60) {
@@ -170,13 +163,13 @@ void move(int &state, int points[], int config[], int progress[]) {
           dir = CW;
           progress[FUTURECOLOR] = points[i] - 64;
           state = CHANGETHREAD;
-          screen(state);
+          screen(state, progress);
           touchLed(state);
         } else if (points[i] <= 101 && points[i] >= 97) {
           dir = CCW;
           progress[FUTURECOLOR] = points[i] - 96;
           state = CHANGETHREAD;
-          screen(state);
+          screen(state, progress);
           touchLed(state);
         } else {
           state = ERROR;
@@ -184,17 +177,18 @@ void move(int &state, int points[], int config[], int progress[]) {
           touchLed(state);
         }
         if (state == RUNNING) {
-          move = points[i + 1] + points[i + 2];
+          move = points[i + 1] + points[i + 2] + points[i + 3];
+          printf("%d\n", move);
           platterMove(move);
-          slingMove(dir);
+          printf("Sling %f\n", SMotor.position(deg));
+          slingMove(dir, state, config, position);
+          printf("Done\n");
         }
       } else {
         state = ERROR;
         screen(state);
         touchLed(state);
       }
-      progress[PROGRESS] = 100.0 * (progress[LINE] / config[LINES]);
-      clamp(progress[PROGRESS], 0, 100);
       progress[LINE]++;
       screen(state, progress);
     }
@@ -203,30 +197,6 @@ void move(int &state, int points[], int config[], int progress[]) {
   state = FINISH;
   screen(state);
   touchLed(state);
-}
-
-void motorTest() {
-  while (true) {
-    while (Brain.buttonLeft.pressing()) {
-      platterMove(150);
-      slingMove(CCW);
-      // PMotor1.spin(forward, 100, percent);
-      // wait(10, msec);
-    }
-    while (Brain.buttonRight.pressing()) {
-      platterMove(50);
-      slingMove(CW);
-      // PMotor2.spin(forward, 100, percent);
-      // wait(10, msec);
-    }
-    while (Brain.buttonCheck.pressing()) {
-      platterMove(25);
-      slingMove(IN);
-      // PMotor3.spin(forward, 100, percent);
-      // wait(10, msec);
-    }
-    wait(10, msec);
-  }
 }
 
 int main() {
@@ -243,29 +213,23 @@ int main() {
   printf("Calibrate\n");
   loadFile(state, points, config);
   printf("LoadFile\n");
-  screen(state, config);
-  printf("Screen\n");
-  touchLed(state);
-  printf("touchLed\n");
-
-  // thread motorThread = thread(motorTest);
+  menu(state, config);
+  printf("Menu\n");
 
   while (true) {
-    menu(state, config);
-    printf("Menu\n");
     updateMotorPosition(position);
     screen(state, config, position);
     printf("MotorPosition\n");
     printf("%d\n", state);
-    move(state, points, config, progress);
+    move(state, points, config, progress, position);
     printf("Move\n");
-    detectThread(state);
+    // detectThread(state);
     printf("DetectThread\n");
 
     if (!Brain.SDcard.isInserted()) {
       state = INSERTSD;
-      touchLed(state);
       screen(state);
+      touchLed(state);
     }
 
     wait(10, msec);
