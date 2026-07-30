@@ -1,5 +1,5 @@
-#include "config.h"
 #include "sensors.h"
+#include "config.h"
 #include "main.h"
 
 void screen(int state, int arr[], double darr[]) {
@@ -18,9 +18,9 @@ void screen(int state, int arr[], double darr[]) {
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Slot:%d", arr[SLOT]);
     Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Slot:%d", arr[LINES]);
+    Brain.Screen.print("Lines:%d", arr[LINES]);
     Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Slot:%d", arr[SLOT]);
+    Brain.Screen.print("Colors:%d", arr[COLORS]);
   } else if (state == START) {
     Brain.Screen.print("Start");
     Brain.Screen.setCursor(2, 1);
@@ -38,9 +38,9 @@ void screen(int state, int arr[], double darr[]) {
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("L:%d", arr[LINE]);
     Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Pmotor Position:%f", darr[PMOTORS]);
+    Brain.Screen.print("Pmotor:%f", PMotor1.position(deg));
     Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Smotor Position:%f", darr[SMOTOR]);
+    Brain.Screen.print("Smotor:%f", (SMotor.position(deg) * 1.5));
   } else if (state == CHANGETHREAD) {
     Brain.Screen.print("Change Thread");
     Brain.Screen.setCursor(2, 1);
@@ -63,28 +63,30 @@ void touchLed(int &state) {
     TouchLED.setColor(vex::blue);
   } else if (state == START) {
     TouchLED.setBlink(vex::green, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing()) { wait(25, msec); }
     state = RUNNING;
-    touchLed(state);
     screen(state);
+    touchLed(state);
   } else if (state == RUNNING) {
     TouchLED.setBlink(vex::green, 1, 0);
   } else if (state == CHANGETHREAD) {
     TouchLED.setBlink(vex::yellow, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing()) { wait(25, msec); }
     state = RUNNING;
-    touchLed(state);
     screen(state);
+    touchLed(state);
   } else if (state == NOTHREAD) {
     TouchLED.setBlink(vex::yellow, 0.5, 0.5);
-    while (!TouchLED.pressing()) { wait(10, msec); }
+    while (!TouchLED.pressing()) { wait(25, msec); }
     state = RUNNING;
-    touchLed(state);
     screen(state);
+    touchLed(state);
   } else if (state == FINISH) {
     TouchLED.setBlink(vex::white, 0.5, 0.5);
+    while (state == FINISH) { wait(25, msec); }
   } else {
     TouchLED.setBlink(vex::red, 0.5, 0.5);
+    while (true) { wait(25, msec); }
   }
 }
 
@@ -95,8 +97,8 @@ void detectThread(int &state) {
         Optical3.color() == nothread || Optical4.color() == nothread ||
         Optical5.color() == nothread) {
       state = NOTHREAD;
-      touchLed(state);
       screen(state);
+      touchLed(state);
     }
   }
 }
