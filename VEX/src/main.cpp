@@ -575,7 +575,7 @@ void movePlatter(double positionTarget, double &position, double backlashDeletio
   }
 }
 
-void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset)
+void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset, double &buttonOffset)
 {
 /*
 to zero platter:
@@ -599,6 +599,15 @@ platter should be zero'd
   // instruct user to add bumper
   PMotors.setPosition(0, degrees);
 
+PMotors.spin(forward, 20, percent);
+while (!Bumper.pressing()){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+PMotors.spin(reverse, 10, percent);
+while (PMotors.position(degrees)>-10.0){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+
   while (!Bumper.pressing())
   {
     Brain.Screen.print("trying to zero");
@@ -608,6 +617,7 @@ platter should be zero'd
   }
 
   PMotor3.setPosition(0, degrees);
+  //if the below breaks, revert 0 to backlashdeletiondegrees
   PMotor1.setPosition(backlashDeletionDegrees, degrees);
   PMotor2.setPosition(backlashDeletionDegrees, degrees);
   index = 0.5;
@@ -631,6 +641,7 @@ platter should be zero'd
       index += 0.5;
     }
   }
+buttonOffset = PMotor3.position(degrees);
   PMotor3.setPosition(0, degrees);
   PMotor1.setPosition(backlashDeletionDegrees, degrees);
   PMotor2.setPosition(backlashDeletionDegrees, degrees);
@@ -660,62 +671,6 @@ platter should be zero'd
   Brain.Screen.print("%.2f", leftOffset);
 }
 
-// move with no offsets, normal backlash deletion til u hit bumber
-// remember positions of motors
-// do it again 2 times
-// set the lagging motor to zero, the leading motors to be zeroed at the lagging motor's position
-// then when you do offsets, they will take into account this one sided zero
-// note: you will have to add the offsets into the coarse movetos because these offsets might be
-// pretty big
-
-/*
-homeplatter
-instruct user to add bumper
-move all motors right until u hit bumper
-back up 20 degrees
-zero all the motors
-move very slowly until you hit bumper again, this time with move function in half degree steps until
-you hit bumper measure motor position for both of these, do this again 3 times and average the
-resulting motor positions set zero for all to position of the lagging motor(if this is being weird
-you may need to do a funny)
-
-  instruct user to add a thread, wrap once, tie on an opposite nail
-  move to 2 nails ish left of rs offset
-  instruct user to click arrow keys until threadwrapper aligns with designated nail
-  true lagging position minus intended position is now the offset
-  repeat for 2nd and 3rd rs offsets
-  go back to zero
-  instruct user to pull on thread until taught (note that its not gonna be at the zero)
-  go until pretty damn far from ls offset intended
-  instruct user to click arrow keys until threadwrapper aligns with designated nail
-  ls offset is now true lagging position
-  */
-
-void moveToNail(int target, int maxNails, int &nailPosition, double &truePosition, double &position,
-                double backlashDeletionDegrees, double leftOffset)
-{
-  int dist = 0;
-  double positionTarget = 0;
-
-  dist = target - nailPosition;
-
-  if (dist != 0)
-  {
-    if (abs(dist) > (abs(target + maxNails - nailPosition)))
-    {
-      dist = target + maxNails - nailPosition;
-    }
-    else if (abs(dist) > (abs((target - maxNails) - nailPosition)))
-    {
-      dist = (target - maxNails) - nailPosition;
-    }
-    positionTarget = truePosition + dist * 5;
-    nailPosition = target;
-    truePosition = positionTarget;
-    movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
-  }
-}
-
 void moveToNail2(int target, int maxNails, int &nailPosition, double &truePosition, double &position,
                 double backlashDeletionDegrees, double leftOffset)
 {
@@ -728,7 +683,7 @@ void moveToNail2(int target, int maxNails, int &nailPosition, double &truePositi
 displacementToStandard = target-nailPosition;
 displacementToForward = (target+maxNails)-nailPosition;
 displacementToReverse = (target-maxNails)-nailPosition;
-
+if (displacementToStandard!=0){
 displacement = displacementToStandard;
 if (abs(displacement)>(abs(displacementToForward)))
 {
@@ -749,26 +704,54 @@ Brain.Screen.newLine();
 
 Brain.Screen.print("postar:""%.2f", positionTarget);
     movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+}
   
 }
+
+void homePlatter(double &buttonOffset, double backlashDeletionDegrees)
+{
+  double index = 0;
+  double position = 0;
+
+//instruct user to add bumper
+PMotors.setPosition(0, degrees);
+PMotors.spin(forward, 20, percent);
+while (!Bumper.pressing()){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+PMotors.spin(reverse, 2, percent);
+while (PMotors.position(degrees)>-10.0){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+
+while (!Bumper.pressing())
+  {
+    Brain.Screen.print("trying to zero");
+    movePlatter(index, position, backlashDeletionDegrees, 0);
+    index += 0.5;
+    Brain.Screen.print("trying to zero");
+  }
+
+
+PMotor3.setPosition(-buttonOffset, degrees);
+  PMotor1.setPosition(backlashDeletionDegrees-buttonOffset, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees-buttonOffset, degrees);
+  wait(3, seconds);
+//instruct user to remove bumper
+//if you want it to go back to zero now you can. I haven't had it do that here because you might not want to do that idk
+}
+
 int main()
 {
   double leftOffset = 0;
   double position = 0;
   int nailPosition = 0;
   double truePosition = 0;
+  double buttonOffset = 0;
   wait(3, seconds);
-  zeroPlatter(position, 3, leftOffset);
+  zeroPlatter(position, 5, leftOffset,buttonOffset);
   wait(3, seconds);
-  moveToNail2(30, 288, nailPosition, truePosition, position, 3, leftOffset);
-  wait(5, seconds);
-  moveToNail2(60, 288, nailPosition, truePosition, position, 3, leftOffset);
-  wait(5, seconds);
-  moveToNail2(283, 288, nailPosition, truePosition, position, 3, leftOffset);
-  wait(5, seconds);
-  moveToNail2(238, 288, nailPosition, truePosition, position, 3, leftOffset);
-  wait(5, seconds);
-  movePlatter(0, position, 3, leftOffset);
+  moveToNail2(0, 288, nailPosition, truePosition, position, 5, leftOffset);
   
 
   /*
