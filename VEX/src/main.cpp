@@ -14,7 +14,7 @@
 #include "util.h"
 #include "vex.h"
 
-const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 500,
+const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 5000,
           MAXNAIL = 287;
 const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 1.5, BACKLASH = 5, NAILNUM = 288;
 const double pid[4] = {2.5, 1, 0.6, 1};
@@ -48,12 +48,19 @@ void calibratePlatter(int &state) {
   PMotors.setStopping(hold);
   // hardstop all motors to bumper and zero all positions.
   int ok = 0;
-  PMotors.setVelocity(velocity, percent);
-  PMotors.spin(forward);
   PMotors.setMaxTorque(0.01, Nm);
-  while (ok <= 50) {
-    if ((PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
-        (PMotor3.velocity(dps) == 0)) {
+
+  while (!Bumper.pressing()) {
+    PMotors.spin(forward, velocity, percent);
+    printf("motor1 velocity: %d dps\n", (int)PMotor1.velocity(dps));
+    wait(10, msec);
+  }
+  wait(500, msec);
+
+  /*
+  while (ok <= 25) {
+    if ((PMotor1.velocity(dps) <= 60) && (PMotor2.velocity(dps) <= 60) &&
+        (PMotor3.velocity(dps) <= 60)) {
       ok++;
     } else {
       ok = 0;
@@ -63,6 +70,8 @@ void calibratePlatter(int &state) {
     }
     wait(10, msec);
   }
+  */
+
   PMotors.stop();
   PMotor1.setPosition(0, degrees);
   PMotor2.setPosition(0, degrees);
@@ -122,7 +131,7 @@ void loadFile(int &state, int points[], int config[]) { // TODO add slots
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Point %d ", i);
       printf("%d\n", points[i]);
-      wait(5, msec);
+      wait(1, msec);
     }
     state = CALIBRATE;
     screen(state, config);
