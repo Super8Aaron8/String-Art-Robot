@@ -18,13 +18,17 @@ const int RAWCONFIGNUM = 17, CONFIGNUM = 9, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOI
 const double PINRATIO = 288.0 * 0.25, TOLERANCE = 5, BACKLASH = 3;
 const double pid[4] = {1, 1, 0.6, 1};
 
-void calibrate(int &state) {
+void calibrate(int &state)
+{
   state = CALIBRATE;
   PMotors.resetPosition();
   SMotor.resetPosition();
   SMotor.stop(hold);
   TouchLED.on(vex::purple, 100);
-  if (!Brain.SDcard.isInserted()) { state = INSERTSD; }
+  if (!Brain.SDcard.isInserted())
+  {
+    state = INSERTSD;
+  }
   Timer.reset();
   screen(state);
   touchLed(state);
@@ -36,7 +40,8 @@ void loadFile(int &state, int points[], int config[]) { // TODO add slots
     int fileSize = Brain.SDcard.size("path.txt");
     uint8_t buffer[fileSize];
     Brain.SDcard.loadfile("path.txt", buffer, sizeof(buffer));
-    for (int i = 0; i < RAWCONFIGNUM; i++) {
+    for (int i = 0; i < RAWCONFIGNUM; i++)
+    {
       rawConfig[i] = buffer[i];
       //  + (rawConfig[SLOTS] * SLOTSIZE)
       printf("Config %d ", i);
@@ -67,10 +72,16 @@ void loadFile(int &state, int points[], int config[]) { // TODO add slots
   }
 }
 
-void menu(int &state, int config[]) {
-  while (state == MENU) {
-    if (Brain.buttonRight.pressing()) {
-      while (Brain.buttonRight.pressing()) { wait(10, msec); }
+void menu(int &state, int config[])
+{
+  while (state == MENU)
+  {
+    if (Brain.buttonRight.pressing())
+    {
+      while (Brain.buttonRight.pressing())
+      {
+        wait(10, msec);
+      }
       config[SLOT]++;
       config[SLOT] = clamp(config[SLOT], 1, SLOTNUM);
       screen(state, config);
@@ -157,21 +168,29 @@ void move(int &state, int points[], int config[], int progress[], double positio
           (points[i + 3] != 10 && points[i + 3] != 13)) {
         if (points[i] == 62) {
           dir = CW;
-        } else if (points[i] == 60) {
+        }
+        else if (points[i] == 60)
+        {
           dir = CCW;
-        } else if (points[i] <= 69 && points[i] >= 65) {
+        }
+        else if (points[i] <= 69 && points[i] >= 65)
+        {
           dir = CW;
           progress[FUTURECOLOR] = points[i] - 64;
           state = CHANGETHREAD;
           screen(state, progress);
           touchLed(state);
-        } else if (points[i] <= 101 && points[i] >= 97) {
+        }
+        else if (points[i] <= 101 && points[i] >= 97)
+        {
           dir = CCW;
           progress[FUTURECOLOR] = points[i] - 96;
           state = CHANGETHREAD;
           screen(state, progress);
           touchLed(state);
-        } else {
+        }
+        else
+        {
           state = ERROR;
           screen(state);
           touchLed(state);
@@ -184,7 +203,9 @@ void move(int &state, int points[], int config[], int progress[], double positio
           slingMove(dir, state, config, position);
           printf("Done\n");
         }
-      } else {
+      }
+      else
+      {
         state = ERROR;
         screen(state);
         touchLed(state);
@@ -199,7 +220,272 @@ void move(int &state, int points[], int config[], int progress[], double positio
   touchLed(state);
 }
 
-int main() {
+void movePlatter(double positionTarget, double &position, double backlashDeletionDegrees,
+                 double leftOffset)
+{
+  const double midDist = 130, slowDist = 10;
+  const int fastSpeed = 20, midSpeed = 10, slowSpeed = 2;
+  double leadingTarget = 0;
+  double laggingTarget = 0;
+  int direction = 1;
+  bool isThere1 = false, isThere2 = false, isThere3 = false;
+
+  /* int prevnail = 0;
+  int dist = 0;
+  prevnail = dnormalize(position, 1440.0, false);
+  if(prevnail<0)
+  prevnail +=1440;
+  prevnail = prevnail/5;
+  dist = target-prevnail;
+  if (fabs(dist)>(fabs(target+288-prevnail)))
+  dist = target+288-prevnail;
+  if (fabs(dist)>(fabs(target-288)-prevnail))
+  dist = (target-288)-prevnail;
+  positionTarget = position+dist*5;
+  */
+  // figure out how to find prevnail prevnail = 0;
+  // figure out how to turn prevnail, target, current position into positiontarget
+
+  if (position > positionTarget)
+  {
+    direction = -1;
+  }
+  else
+  {
+    direction = 1;
+  }
+
+  leadingTarget = positionTarget + direction * backlashDeletionDegrees;
+  laggingTarget = positionTarget;
+  position = positionTarget;
+
+  if (direction == -1)
+  {
+    leadingTarget += leftOffset;
+    laggingTarget += leftOffset;
+  }
+
+  // TODO add pid
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
+  {
+    PMotors.spin(forward, direction * fastSpeed, percent);
+    while (fabs(PMotor3.position(degrees) - laggingTarget) > midDist)
+    {
+      wait(10, msec);
+    }
+  }
+
+  if (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
+  {
+    PMotors.spin(forward, direction * midSpeed, percent);
+    while (fabs(PMotor3.position(degrees) - laggingTarget) > slowDist)
+    {
+      wait(10, msec);
+    }
+  }
+
+  PMotors.spin(forward, direction * slowSpeed, percent);
+
+  while (isThere1 != true || isThere2 != true || isThere3 != true)
+  {
+    if (direction * (PMotor1.position(degrees) - leadingTarget) > 0)
+    {
+      isThere1 = true;
+      PMotor1.stop(brake);
+    }
+    if (direction * (PMotor2.position(degrees) - leadingTarget) > 0)
+    {
+      isThere2 = true;
+      PMotor2.stop(brake);
+    }
+    if (direction * (PMotor3.position(degrees) - laggingTarget) > 0)
+    {
+      isThere3 = true;
+      PMotor3.stop(brake);
+    }
+  }
+}
+
+void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset, double &buttonOffset)
+{
+/*
+to zero platter:
+place needle to the right of the intended zero nail by about 1cm (not exact)
+run function
+it will move the nail bed right. hit the bumper before you get to the intended zero nail. ignore that this step makes no sense. it will be somewhat removed later
+click the right arrow until the needle lines up with the intended nail
+click check
+wait until the platter moves about 1cm right of the intended nail
+click the left arrow until the needle lines up again with the intended nail
+click check
+platter should be zero'd
+*/
+
+
+
+
+  double index = 0.5;
+  bool correct = false;
+
+  // instruct user to add bumper
+  PMotors.setPosition(0, degrees);
+
+PMotors.spin(forward, 20, percent);
+while (!Bumper.pressing()){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+PMotors.spin(reverse, 10, percent);
+while (PMotors.position(degrees)>-10.0){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+
+  while (!Bumper.pressing())
+  {
+    Brain.Screen.print("trying to zero");
+    movePlatter(index, position, backlashDeletionDegrees, 0);
+    index += 0.5;
+    Brain.Screen.print("trying to zero");
+  }
+
+  PMotor3.setPosition(0, degrees);
+  //if the below breaks, revert 0 to backlashdeletiondegrees
+  PMotor1.setPosition(backlashDeletionDegrees, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees, degrees);
+  index = 0.5;
+  wait(3, seconds);
+  // instruct user to remove bumper
+  while (correct == false)
+  {
+
+    while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonRight.pressing())
+      {
+      }
+
+      movePlatter(index, position, backlashDeletionDegrees, 0);
+      index += 0.5;
+    }
+  }
+buttonOffset = PMotor3.position(degrees);
+  PMotor3.setPosition(0, degrees);
+  PMotor1.setPosition(backlashDeletionDegrees, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees, degrees);
+  wait(3, seconds);
+  movePlatter(10, position, backlashDeletionDegrees, 0);
+
+  index = 10;
+  correct = false;
+  while (correct == false)
+  {
+    while (!(Brain.buttonLeft.pressing() || Brain.buttonCheck.pressing()))
+    {
+    }
+    if (Brain.buttonCheck.pressing())
+      correct = true;
+    else
+    {
+      while (Brain.buttonLeft.pressing())
+      {
+      }
+
+      movePlatter(index, position, backlashDeletionDegrees, 0);
+      index -= 0.5;
+    }
+  }
+  leftOffset = PMotor3.position(degrees);
+  Brain.Screen.print("%.2f", leftOffset);
+}
+
+void moveToNail2(int target, int maxNails, int &nailPosition, double &truePosition, double &position,
+                double backlashDeletionDegrees, double leftOffset)
+{
+  int displacementToStandard = 0;
+  int displacementToForward = 0;
+  int displacementToReverse = 0;
+  double positionTarget = 0;
+  int displacement = 0;
+
+displacementToStandard = target-nailPosition;
+displacementToForward = (target+maxNails)-nailPosition;
+displacementToReverse = (target-maxNails)-nailPosition;
+if (displacementToStandard!=0){
+displacement = displacementToStandard;
+if (abs(displacement)>(abs(displacementToForward)))
+{
+  displacement = displacementToForward;
+}
+else if (abs (displacement) > abs(displacementToReverse))
+{
+  displacement = displacementToReverse;
+}
+Brain.Screen.clearScreen();
+Brain.Screen.setCursor(1,1);
+Brain.Screen.print("nailmove:", "%d", displacement);
+Brain.Screen.newLine();
+
+    positionTarget = truePosition + double(displacement*5);
+    nailPosition = target;
+    truePosition = positionTarget;
+
+Brain.Screen.print("postar:""%.2f", positionTarget);
+    movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+}
+  
+}
+
+void homePlatter(double &buttonOffset, double backlashDeletionDegrees)
+{
+  double index = 0;
+  double position = 0;
+
+//instruct user to add bumper
+PMotors.setPosition(0, degrees);
+PMotors.spin(forward, 20, percent);
+while (!Bumper.pressing()){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+PMotors.spin(reverse, 2, percent);
+while (PMotors.position(degrees)>-10.0){}
+PMotors.stop(brake);
+PMotors.setPosition(0, degrees);
+
+while (!Bumper.pressing())
+  {
+    Brain.Screen.print("trying to zero");
+    movePlatter(index, position, backlashDeletionDegrees, 0);
+    index += 0.5;
+    Brain.Screen.print("trying to zero");
+  }
+
+
+PMotor3.setPosition(-buttonOffset, degrees);
+  PMotor1.setPosition(backlashDeletionDegrees-buttonOffset, degrees);
+  PMotor2.setPosition(backlashDeletionDegrees-buttonOffset, degrees);
+  wait(3, seconds);
+//instruct user to remove bumper
+//if you want it to go back to zero now you can. I haven't had it do that here because you might not want to do that idk
+}
+
+int main()
+{
+  double leftOffset = 0;
+  double position = 0;
+  int nailPosition = 0;
+  double truePosition = 0;
+  double buttonOffset = 0;
+  wait(3, seconds);
+  zeroPlatter(position, 5, leftOffset,buttonOffset);
+  wait(3, seconds);
+  moveToNail2(0, 288, nailPosition, truePosition, position, 5, leftOffset);
+  
+
+  /*
   int state = CALIBRATE;
   double position[2] = {0, 0};
   int progress[5] = {0, 0, 0, 0, 0};
