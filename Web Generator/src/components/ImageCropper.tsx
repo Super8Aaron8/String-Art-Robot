@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { drawAdjustedImage, type CropTransform } from '../lib/imageProcessing'
+import { drawAdjustedImage, type CropTransform, type ImageAdjustments } from '../lib/imageProcessing'
 import { generateDemoImageFile } from '../lib/demoImage'
 import StepperField from './StepperField'
 
@@ -10,13 +10,12 @@ interface Props {
   image: HTMLImageElement | null
   size: number
   transform: CropTransform
-  contrast: number
-  brightness: number
+  adjustments: ImageAdjustments
   onFile: (file: File) => void
   onTransformChange: (t: CropTransform) => void
 }
 
-export default function ImageCropper({ image, size, transform, contrast, brightness, onFile, onTransformChange }: Props) {
+export default function ImageCropper({ image, size, transform, adjustments, onFile, onTransformChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -28,7 +27,7 @@ export default function ImageCropper({ image, size, transform, contrast, brightn
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    drawAdjustedImage(ctx, image, size, transform, contrast, brightness)
+    drawAdjustedImage(ctx, image, size, transform, adjustments)
 
     ctx.save()
     ctx.beginPath()
@@ -44,7 +43,7 @@ export default function ImageCropper({ image, size, transform, contrast, brightn
     ctx.beginPath()
     ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
     ctx.stroke()
-  }, [image, size, transform, contrast, brightness])
+  }, [image, size, transform, adjustments])
 
   const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
 
@@ -101,73 +100,77 @@ export default function ImageCropper({ image, size, transform, contrast, brightn
     <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
   )
 
-  if (!image) {
-    return (
-      <div
-        onClick={openPicker}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault()
-          handleFiles(e.dataTransfer.files)
-        }}
-        className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-[1px] border border-line-2 bg-bg-1 transition-colors hover:border-red"
-      >
-        <div className="flex flex-col items-center gap-2 px-6 text-center">
-          <span className="font-mono text-[0.7rem] uppercase tracking-wide-2 text-text-2">
-            Drop image, or click to browse
-          </span>
-          <span className="font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-2 opacity-60">
-            PNG · JPG · WEBP
-          </span>
-          <button
-            onClick={loadDemo}
-            className="mt-1 font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-2 underline decoration-dotted underline-offset-4 hover:text-red"
-          >
-            Try a demo pattern
-          </button>
-        </div>
-        {fileInput}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-3 rounded-[1px] border border-line bg-bg-1 p-4">
-      <canvas
-        ref={canvasRef}
-        width={size}
-        height={size}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        className={`w-full rounded-[1px] border border-line-2 bg-bg-2 ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-      />
-      <span className="font-mono text-[0.56rem] uppercase tracking-wide-1 text-text-2 opacity-60">
-        Drag to reposition · scroll to zoom · zoom below 1.00x extends past the image edge
-      </span>
-      <div className="flex items-end gap-3">
-        <StepperField
-          label="Zoom"
-          value={transform.zoom}
-          min={ZOOM_MIN}
-          max={ZOOM_MAX}
-          step={0.05}
-          format={(v) => `${v.toFixed(2)}x`}
-          onChange={(v) => onTransformChange({ ...transform, zoom: clampZoom(v) })}
-        />
-        <button
-          onClick={() => onTransformChange({ zoom: 1, offsetX: 0, offsetY: 0 })}
-          className="h-[34px] shrink-0 rounded-[1px] border border-line-2 px-3 font-mono text-[0.6rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
-        >
-          Reset
-        </button>
-        <button
-          onClick={openPicker}
-          className="h-[34px] shrink-0 rounded-[1px] border border-line-2 px-3 font-mono text-[0.6rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
-        >
-          Change
-        </button>
+    <div className="flex shrink-0 flex-col gap-4 rounded-[1px] border border-line bg-bg-1 p-5">
+      <div className="section-label">
+        <span className="font-mono text-[0.62rem] uppercase tracking-wide-3 text-red">01 — INPUT</span>
       </div>
-      {fileInput}
+
+      {!image ? (
+        <div
+          onClick={openPicker}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            handleFiles(e.dataTransfer.files)
+          }}
+          className="flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-[1px] border border-line-2 bg-bg-2 transition-colors hover:border-red"
+        >
+          <div className="flex flex-col items-center gap-2 px-6 text-center">
+            <span className="font-mono text-[0.7rem] uppercase tracking-wide-2 text-text-2">
+              Drop image, or click to browse
+            </span>
+            <span className="font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-2 opacity-60">
+              PNG · JPG · WEBP
+            </span>
+            <button
+              onClick={loadDemo}
+              className="mt-1 font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-2 underline decoration-dotted underline-offset-4 hover:text-red"
+            >
+              Try a demo face
+            </button>
+          </div>
+          {fileInput}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <canvas
+            ref={canvasRef}
+            width={size}
+            height={size}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            className={`w-full rounded-[1px] border border-line-2 bg-bg-2 ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          />
+          <span className="font-mono text-[0.56rem] uppercase tracking-wide-1 text-text-2 opacity-60">
+            Drag to reposition · scroll to zoom · zoom below 1.00x extends past the image edge
+          </span>
+          <div className="flex items-end gap-3">
+            <StepperField
+              label="Zoom"
+              value={transform.zoom}
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={0.05}
+              format={(v) => `${v.toFixed(2)}x`}
+              onChange={(v) => onTransformChange({ ...transform, zoom: clampZoom(v) })}
+            />
+            <button
+              onClick={() => onTransformChange({ zoom: 1, offsetX: 0, offsetY: 0 })}
+              className="h-[34px] shrink-0 rounded-[1px] border border-line-2 px-3 font-mono text-[0.6rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
+            >
+              Reset
+            </button>
+            <button
+              onClick={openPicker}
+              className="h-[34px] shrink-0 rounded-[1px] border border-line-2 px-3 font-mono text-[0.6rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
+            >
+              Change
+            </button>
+          </div>
+          {fileInput}
+        </div>
+      )}
     </div>
   )
 }

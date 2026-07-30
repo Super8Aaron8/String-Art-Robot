@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ImageCropper from './components/ImageCropper'
-import ConfigPanel, { type ImageAdjustments } from './components/ConfigPanel'
+import ImageAdjustmentsPanel from './components/ImageAdjustmentsPanel'
+import ConfigPanel from './components/ConfigPanel'
+import StepperField from './components/StepperField'
 import ScrewPanel from './components/ScrewPanel'
 import ColorListEditor from './components/ColorListEditor'
 import PreviewCanvas from './components/PreviewCanvas'
@@ -9,23 +11,22 @@ import {
   loadImageFile,
   processImage,
   DEFAULT_TRANSFORM,
+  DEFAULT_ADJUSTMENTS,
   type ProcessedImage,
   type CropTransform,
+  type ImageAdjustments,
 } from './lib/imageProcessing'
 import { LineCache } from './lib/lineCache'
 import { generateColorSequences } from './lib/stringArt'
-import { buildExportText, downloadTextFile } from './lib/exportPath'
+import { buildExportBinary, downloadBinaryFile } from './lib/exportPath'
 import { loadStoredConfig, saveStoredConfig } from './lib/storage'
 import { newId } from './lib/id'
 import { DEFAULT_SCREW } from './config/screw'
 import type { GenerationResult, ThreadColor } from './types'
 
 const WORKING_SIZE = 400
-const REGEN_DEBOUNCE_MS = 350
 
 interface Progress {
-  colorIndex: number
-  colorTotal: number
   lineIndex: number
   lineTotal: number
 }
@@ -37,25 +38,27 @@ export default function App() {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [transform, setTransform] = useState<CropTransform>(DEFAULT_TRANSFORM)
   const [processed, setProcessed] = useState<ProcessedImage | null>(null)
-  const [adjustments, setAdjustments] = useState<ImageAdjustments>(stored.adjustments ?? { contrast: 20, brightness: 0 })
+  const [adjustments, setAdjustments] = useState<ImageAdjustments>({ ...DEFAULT_ADJUSTMENTS, ...stored.adjustments })
 
   const [pegCount, setPegCount] = useState(stored.pegCount ?? 150)
   const [minPegDistance, setMinPegDistance] = useState(stored.minPegDistance ?? 15)
   const [lineWeight, setLineWeight] = useState(stored.lineWeight ?? 0.09)
   const [multiColor, setMultiColor] = useState(stored.multiColor ?? false)
-  const [colors, setColors] = useState<ThreadColor[]>(stored.colors ?? [{ id: 'c0', hex: '#000000', lineCount: 5000 }])
+  const [colors, setColors] = useState<ThreadColor[]>(stored.colors ?? [{ id: 'c0', hex: '#000000' }])
+  const [totalLines, setTotalLines] = useState(stored.totalLines ?? 5000)
   const [screwDistance, setScrewDistance] = useState(stored.screwDistance ?? 10)
   const [screw, setScrew] = useState(stored.screw ?? DEFAULT_SCREW)
+  const [slot, setSlot] = useState(stored.slot ?? 1)
 
   const [generating, setGenerating] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [result, setResult] = useState<GenerationResult | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [isStale, setIsStale] = useState(false)
 
   const generatingRef = useRef(false)
-  const pendingRegenRef = useRef(false)
   const previewColumnRef = useRef<HTMLDivElement>(null)
-  const runGenerateRef = useRef<() => void>(() => {})
 
   const { pegs, cx, cy, radius } = useMemo(() => generateCircularPegs(pegCount, WORKING_SIZE), [pegCount])
 
@@ -75,7 +78,7 @@ export default function App() {
 
   useEffect(() => {
     if (!image) return
-    setProcessed(processImage(image, WORKING_SIZE, adjustments.contrast, adjustments.brightness, transform))
+    setProcessed(processImage(image, WORKING_SIZE, adjustments, transform))
   }, [image, adjustments, transform])
 
   useEffect(() => {
@@ -88,8 +91,10 @@ export default function App() {
       adjustments,
       multiColor,
       colors,
+      totalLines,
+      slot,
     })
-  }, [pegCount, minPegDistance, lineWeight, screwDistance, screw, adjustments, multiColor, colors])
+  }, [pegCount, minPegDistance, lineWeight, screwDistance, screw, adjustments, multiColor, colors, totalLines, slot])
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === previewColumnRef.current)
@@ -108,70 +113,60 @@ export default function App() {
   const handleMultiColorChange = (v: boolean) => {
     setMultiColor(v)
     if (v && colors.length === 1) {
-      setColors([
-        { ...colors[0], lineCount: Math.round(colors[0].lineCount * 0.6) },
-        { id: newId('c'), hex: '#EF4444', lineCount: Math.round(colors[0].lineCount * 0.4) },
-      ])
+      setColors([colors[0], { id: newId('c'), hex: '#EF4444' }])
     } else if (!v && colors.length > 1) {
-      setColors([{ ...colors[0], hex: '#000000', lineCount: 5000 }])
+      setColors([{ ...colors[0], hex: '#000000' }])
     }
   }
 
   const runGenerate = useCallback(async () => {
-    if (!processed) return
-    if (generatingRef.current) {
-      pendingRegenRef.current = true
-      return
-    }
+    if (!processed || generatingRef.current) return
     generatingRef.current = true
     setGenerating(true)
     setProgress(null)
     try {
-      const lineCache = new LineCache(pegs, WORKING_SIZE)
+      const lineCache = new LineCache(pegs, WORKING_SIZE, renderScrew.radius)
       const results = await generateColorSequences({
         rgb: processed.rgb,
         pegs,
         lineCache,
         colors,
+        totalLines,
         minPegDistance,
         lineWeight,
-        onProgress: (colorIndex, colorTotal, lineIndex, lineTotal) =>
-          setProgress({ colorIndex, colorTotal, lineIndex, lineTotal }),
+        onProgress: (lineIndex, lineTotal) => setProgress({ lineIndex, lineTotal }),
       })
       setResult({ pegCount, radius, results })
+      setIsStale(false)
     } finally {
       generatingRef.current = false
       setGenerating(false)
       setProgress(null)
-      if (pendingRegenRef.current) {
-        pendingRegenRef.current = false
-        runGenerateRef.current()
-      }
     }
-  }, [processed, pegs, radius, pegCount, colors, minPegDistance, lineWeight])
+  }, [processed, pegs, radius, pegCount, colors, totalLines, minPegDistance, lineWeight, renderScrew.radius])
 
+  // Settings changes no longer trigger generation automatically — the user hits Regenerate.
+  // This only flags the current preview as out of date so the button can prompt them.
+  // lineWeight is intentionally excluded: it only affects preview stroke opacity live
+  // (see PreviewCanvas) and the internal blend used mid-generation, neither of which
+  // requires throwing away the current line sequence and re-running the solver.
   useEffect(() => {
-    runGenerateRef.current = runGenerate
-  }, [runGenerate])
-
-  useEffect(() => {
-    if (!processed) return
-    const timeout = setTimeout(() => {
-      runGenerate()
-    }, REGEN_DEBOUNCE_MS)
-    return () => clearTimeout(timeout)
-  }, [processed, runGenerate])
+    setIsStale(true)
+  }, [processed, pegCount, minPegDistance, colors, totalLines, renderScrew.radius])
 
   const handleExport = () => {
     if (!result) return
-    downloadTextFile('string-art-path.txt', buildExportText(result, screwDistance))
+    try {
+      setExportError(null)
+      downloadBinaryFile('string-art-path.txt', buildExportBinary(result, slot))
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   const previewResults = result && result.pegCount === pegCount ? result.results : null
-  const totalLines = result ? result.results.reduce((sum, r) => sum + r.sequence.length - 1, 0) : 0
-  const progressPercent = progress
-    ? ((progress.colorIndex + progress.lineIndex / progress.lineTotal) / progress.colorTotal) * 100
-    : 0
+  const generatedLineCount = result ? result.results.reduce((sum, r) => sum + r.pegs.length - 1, 0) : 0
+  const progressPercent = progress ? (progress.lineIndex / progress.lineTotal) * 100 : 0
 
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden">
@@ -179,17 +174,25 @@ export default function App() {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 md:grid-cols-[260px_300px_1fr] md:px-6">
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-            <div className="section-label shrink-0">
-              <span className="font-mono text-[0.62rem] uppercase tracking-wide-3 text-red">01 — INPUT</span>
-            </div>
             <ImageCropper
               image={image}
               size={WORKING_SIZE}
               transform={transform}
-              contrast={adjustments.contrast}
-              brightness={adjustments.brightness}
+              adjustments={adjustments}
               onFile={setFile}
               onTransformChange={setTransform}
+            />
+            <ImageAdjustmentsPanel adjustments={adjustments} onAdjustmentsChange={setAdjustments} />
+          </div>
+
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            <ConfigPanel
+              pegCount={pegCount}
+              minPegDistance={minPegDistance}
+              lineWeight={lineWeight}
+              onPegCountChange={setPegCount}
+              onMinPegDistanceChange={setMinPegDistance}
+              onLineWeightChange={setLineWeight}
             />
             <ScrewPanel
               screw={screw}
@@ -198,45 +201,51 @@ export default function App() {
               onScrewChange={setScrew}
               onScrewDistanceChange={setScrewDistance}
             />
-          </div>
-
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-            <ConfigPanel
-              pegCount={pegCount}
-              minPegDistance={minPegDistance}
-              lineWeight={lineWeight}
-              adjustments={adjustments}
-              onPegCountChange={setPegCount}
-              onMinPegDistanceChange={setMinPegDistance}
-              onLineWeightChange={setLineWeight}
-              onAdjustmentsChange={setAdjustments}
-            />
             <ColorListEditor
               multiColor={multiColor}
               colors={colors}
+              totalLines={totalLines}
               onMultiColorChange={handleMultiColorChange}
               onColorsChange={setColors}
+              onTotalLinesChange={setTotalLines}
             />
           </div>
 
-          <div ref={previewColumnRef} className="flex min-h-0 flex-col gap-3 bg-bg-0 p-0.5">
-            <div className="section-label shrink-0 justify-between">
-              <span className="font-mono text-[0.62rem] uppercase tracking-wide-3 text-red">06 — PREVIEW</span>
-              <button
-                onClick={toggleFullscreen}
-                className="shrink-0 rounded-[1px] border border-line-2 px-2.5 py-1 font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
+          <div
+            ref={previewColumnRef}
+            className={`flex min-h-0 flex-col bg-bg-0 ${isFullscreen ? 'h-screen w-screen' : 'gap-3 p-0.5'}`}
+          >
+            <div
+              className={`relative flex min-h-0 flex-1 flex-col overflow-hidden bg-bg-1 ${
+                isFullscreen ? '' : 'gap-3 rounded-[1px] border border-line p-5 shadow-panel'
+              }`}
+            >
+              {!isFullscreen && (
+                <>
+                  <div className="corner-tick tl" />
+                  <div className="corner-tick tr" />
+                  <div className="corner-tick bl" />
+                  <div className="corner-tick br" />
+
+                  <div className="section-label shrink-0 justify-between">
+                    <span className="font-mono text-[0.62rem] uppercase tracking-wide-3 text-red">06 — PREVIEW</span>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="shrink-0 rounded-[1px] border border-line-2 px-2.5 py-1 font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-1 hover:border-red hover:text-red"
+                    >
+                      Fullscreen ⤢
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <div
+                className={
+                  isFullscreen
+                    ? 'min-h-0 w-full flex-1 overflow-hidden'
+                    : 'mx-auto aspect-square min-h-0 max-w-full flex-1 overflow-hidden rounded-[1px] border border-line-2'
+                }
               >
-                {isFullscreen ? 'Exit Fullscreen ⤡' : 'Fullscreen ⤢'}
-              </button>
-            </div>
-
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[1px] border border-line bg-bg-1 p-5 shadow-panel">
-              <div className="corner-tick tl" />
-              <div className="corner-tick tr" />
-              <div className="corner-tick bl" />
-              <div className="corner-tick br" />
-
-              <div className="mx-auto aspect-square h-full max-w-full overflow-hidden rounded-[1px] border border-line-2">
                 <PreviewCanvas
                   pegs={pegs}
                   size={WORKING_SIZE}
@@ -249,44 +258,93 @@ export default function App() {
                 />
               </div>
 
+              {isFullscreen && (
+                <button
+                  onClick={toggleFullscreen}
+                  className="absolute right-4 top-4 z-10 shrink-0 rounded-[1px] border border-line-2 bg-bg-1/90 px-2.5 py-1 font-mono text-[0.58rem] uppercase tracking-wide-1 text-text-1 backdrop-blur-sm hover:border-red hover:text-red"
+                >
+                  Exit Fullscreen ⤡
+                </button>
+              )}
+
               {generating && (
-                <div className="absolute inset-5 flex flex-col items-center justify-center gap-3 bg-bg-0/75 backdrop-blur-[2px]">
+                <div
+                  className={`absolute flex flex-col items-center justify-center gap-3 bg-bg-0/75 backdrop-blur-[2px] ${
+                    isFullscreen ? 'inset-0' : 'inset-5'
+                  }`}
+                >
                   <span className="font-mono text-[0.62rem] uppercase tracking-wide-2 text-red">Generating</span>
                   <div className="h-[2px] w-40 overflow-hidden bg-line-2">
                     <div className="h-full bg-red transition-[width]" style={{ width: `${progressPercent}%` }} />
                   </div>
                   {progress && (
                     <span className="font-mono text-[0.58rem] text-text-2">
-                      color {progress.colorIndex + 1}/{progress.colorTotal} · line {progress.lineIndex}/{progress.lineTotal}
+                      line {progress.lineIndex}/{progress.lineTotal}
                     </span>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-3">
-              <button
-                onClick={() => runGenerate()}
-                disabled={!processed || generating}
-                className="flex-1 rounded-[1px] border border-red bg-red px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-0 shadow-btn-cta transition-all hover:-translate-y-0.5 hover:bg-transparent hover:text-red hover:shadow-btn-cta-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-              >
-                {generating ? 'Generating…' : 'Regenerate'}
-              </button>
-              <button
-                onClick={handleExport}
-                disabled={!result}
-                className="rounded-[1px] border border-line-2 px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-1 transition-colors hover:border-red hover:text-red disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Export .txt
-              </button>
-            </div>
+            {!isFullscreen && (
+              <>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    onClick={() => runGenerate()}
+                    disabled={!processed || generating}
+                    className={`flex-1 rounded-[1px] border border-red bg-red px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-0 shadow-btn-cta transition-all hover:-translate-y-0.5 hover:bg-transparent hover:text-red hover:shadow-btn-cta-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${
+                      !generating && isStale && result ? 'animate-pulse' : ''
+                    }`}
+                  >
+                    {generating ? 'Generating…' : result ? (isStale ? 'Regenerate*' : 'Regenerate') : 'Generate'}
+                  </button>
+                  <div className="w-20 shrink-0">
+                    <StepperField label="Slot" value={slot} min={1} max={8} step={1} onChange={setSlot} />
+                  </div>
+                  <button
+                    onClick={handleExport}
+                    disabled={!result}
+                    className="rounded-[1px] border border-line-2 px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-1 transition-colors hover:border-red hover:text-red disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Export .txt
+                  </button>
+                </div>
 
-            {result && (
-              <div className="grid shrink-0 grid-cols-3 divide-x divide-line border-t border-line pt-3">
-                <Stat label="Pegs" value={result.pegCount} />
-                <Stat label="Total Lines" value={totalLines} />
-                <Stat label="Colors" value={result.results.length} />
-              </div>
+                {/* Fixed-height status slot: content swaps based on state, but the slot itself
+                    is always rendered so toggling it doesn't reflow the flex-1 preview above. */}
+                <p className={`shrink-0 font-mono text-[0.62rem] ${exportError ? 'text-red' : 'text-text-2'}`}>
+                  {exportError ??
+                    (isStale && result && !generating
+                      ? 'Settings changed — preview is out of date. Click Regenerate to update it.'
+                      : ' ')}
+                </p>
+
+                {result && (
+                  <div className="flex shrink-0 flex-col gap-2 border-t border-line pt-3">
+                    <div className="grid grid-cols-3 divide-x divide-line">
+                      <Stat label="Pegs" value={result.pegCount} />
+                      <Stat label="Total Lines" value={generatedLineCount} />
+                      <Stat label="Colors" value={result.results.length} />
+                    </div>
+                    {result.results.length > 1 && (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        {result.results.map((r) => (
+                          <span
+                            key={r.color.id}
+                            className="flex items-center gap-1.5 font-mono text-[0.6rem] text-text-2"
+                          >
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full border border-line-2"
+                              style={{ backgroundColor: r.color.hex }}
+                            />
+                            {r.pegs.length - 1} lines
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </main>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ColorResult, Peg } from '../types'
 import type { ScrewConfig } from '../config/screw'
 import { shadeHex } from '../lib/color'
+import { tangentSegment } from '../lib/tangent'
 
 interface Props {
   pegs: Peg[]
@@ -23,13 +24,6 @@ interface View {
 
 const MAX_ZOOM = 10
 
-function contactPoint(from: Peg, to: Peg, screwRadius: number): { x: number; y: number } {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const dist = Math.sqrt(dx * dx + dy * dy) || 1
-  return { x: from.x + (dx / dist) * screwRadius, y: from.y + (dy / dist) * screwRadius }
-}
-
 interface Segment {
   x1: number
   y1: number
@@ -37,15 +31,14 @@ interface Segment {
   y2: number
 }
 
-function buildSegments(pegs: Peg[], sequence: number[], screwRadius: number): Segment[] {
-  if (sequence.length < 2 || sequence.some((idx) => idx >= pegs.length)) return []
+function buildSegments(pegs: Peg[], pegPath: number[], sides: (1 | -1)[], nailRadius: number): Segment[] {
+  if (pegPath.length < 2 || pegPath.some((idx) => idx >= pegs.length)) return []
   const segments: Segment[] = []
-  for (let i = 0; i < sequence.length - 1; i++) {
-    const a = pegs[sequence[i]]
-    const b = pegs[sequence[i + 1]]
-    const start = contactPoint(a, b, screwRadius)
-    const end = contactPoint(b, a, screwRadius)
-    segments.push({ x1: start.x, y1: start.y, x2: end.x, y2: end.y })
+  for (let i = 0; i < pegPath.length - 1; i++) {
+    const a = pegs[pegPath[i]]
+    const b = pegs[pegPath[i + 1]]
+    const { p0, p1 } = tangentSegment(a, b, sides[i], nailRadius)
+    segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y })
   }
   return segments
 }
@@ -81,7 +74,7 @@ export default function PreviewCanvas({ pegs, size, cx, cy, radius, results, scr
       results?.map((colorResult) => ({
         id: colorResult.color.id,
         hex: colorResult.color.hex,
-        segments: buildSegments(pegs, colorResult.sequence, screw.radius),
+        segments: buildSegments(pegs, colorResult.pegs, colorResult.sides, screw.radius),
       })) ?? [],
     [results, pegs, screw.radius],
   )

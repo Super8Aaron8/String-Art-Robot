@@ -1,5 +1,6 @@
 import type { ThreadColor } from '../types'
 import type { ScrewConfig } from '../config/screw'
+import type { ImageAdjustments } from './imageProcessing'
 
 const STORAGE_KEY = 'string-art-config-v1'
 
@@ -9,9 +10,11 @@ export interface StoredConfig {
   lineWeight: number
   screwDistance: number
   screw: ScrewConfig
-  adjustments: { contrast: number; brightness: number }
+  adjustments: ImageAdjustments
   multiColor: boolean
   colors: ThreadColor[]
+  totalLines: number
+  slot: number
 }
 
 export function loadStoredConfig(): Partial<StoredConfig> {

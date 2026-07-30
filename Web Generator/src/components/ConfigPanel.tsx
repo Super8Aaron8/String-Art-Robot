@@ -1,30 +1,21 @@
 import StepperField from './StepperField'
 
-export interface ImageAdjustments {
-  contrast: number
-  brightness: number
-}
-
 interface Props {
   pegCount: number
   minPegDistance: number
   lineWeight: number
-  adjustments: ImageAdjustments
   onPegCountChange: (v: number) => void
   onMinPegDistanceChange: (v: number) => void
   onLineWeightChange: (v: number) => void
-  onAdjustmentsChange: (v: ImageAdjustments) => void
 }
 
 export default function ConfigPanel({
   pegCount,
   minPegDistance,
   lineWeight,
-  adjustments,
   onPegCountChange,
   onMinPegDistanceChange,
   onLineWeightChange,
-  onAdjustmentsChange,
 }: Props) {
   return (
     <div className="flex shrink-0 flex-col gap-4 rounded-[1px] border border-line bg-bg-1 p-5">
@@ -53,29 +44,6 @@ export default function ConfigPanel({
         format={(v) => v.toFixed(2)}
         onChange={onLineWeightChange}
       />
-
-      <div className="section-label pt-1">
-        <span className="font-mono text-[0.62rem] uppercase tracking-wide-3 text-red">04 — IMAGE</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <StepperField
-          label="Contrast"
-          value={adjustments.contrast}
-          min={-100}
-          max={100}
-          step={1}
-          onChange={(v) => onAdjustmentsChange({ ...adjustments, contrast: v })}
-        />
-        <StepperField
-          label="Brightness"
-          value={adjustments.brightness}
-          min={-100}
-          max={100}
-          step={1}
-          onChange={(v) => onAdjustmentsChange({ ...adjustments, brightness: v })}
-        />
-      </div>
     </div>
   )
 }

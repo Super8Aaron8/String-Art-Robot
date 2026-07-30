@@ -1,10 +1,11 @@
 import type { Peg } from '../types'
+import { tangentSegment, type WrapSide } from './tangent'
 
-function traceLinePixels(p1: Peg, size: number, p2: Peg): Int32Array {
-  const x0 = Math.round(p1.x)
-  const y0 = Math.round(p1.y)
-  const x1 = Math.round(p2.x)
-  const y1 = Math.round(p2.y)
+function traceLinePixels(x0f: number, y0f: number, x1f: number, y1f: number, size: number): Int32Array {
+  const x0 = Math.round(x0f)
+  const y0 = Math.round(y0f)
+  const x1 = Math.round(x1f)
+  const y1 = Math.round(y1f)
 
   const dx = Math.abs(x1 - x0)
   const dy = -Math.abs(y1 - y0)
@@ -36,24 +37,32 @@ function traceLinePixels(p1: Peg, size: number, p2: Peg): Int32Array {
 export class LineCache {
   private size: number
   private pegs: Peg[]
+  private nailRadius: number
   private cache: Map<number, Int32Array> = new Map()
 
-  constructor(pegs: Peg[], size: number) {
+  constructor(pegs: Peg[], size: number, nailRadius: number) {
     this.pegs = pegs
     this.size = size
+    this.nailRadius = nailRadius
   }
 
-  private key(a: number, b: number): number {
-    const lo = Math.min(a, b)
-    const hi = Math.max(a, b)
-    return lo * this.pegs.length + hi
+  private key(lo: number, hi: number, side: WrapSide): number {
+    return (lo * this.pegs.length + hi) * 2 + (side === 1 ? 1 : 0)
   }
 
-  get(a: number, b: number): Int32Array {
-    const key = this.key(a, b)
+  /** side is relative to the a->b direction as given; the same physical tangent line is
+   * returned regardless of call order as long as side is flipped along with a/b. */
+  get(a: number, b: number, side: WrapSide): Int32Array {
+    const flip = a > b
+    const lo = flip ? b : a
+    const hi = flip ? a : b
+    const canonSide: WrapSide = flip ? (side === 1 ? -1 : 1) : side
+
+    const key = this.key(lo, hi, canonSide)
     let pixels = this.cache.get(key)
     if (!pixels) {
-      pixels = traceLinePixels(this.pegs[a], this.size, this.pegs[b])
+      const { p0, p1 } = tangentSegment(this.pegs[lo], this.pegs[hi], canonSide, this.nailRadius)
+      pixels = traceLinePixels(p0.x, p0.y, p1.x, p1.y, this.size)
       this.cache.set(key, pixels)
     }
     return pixels

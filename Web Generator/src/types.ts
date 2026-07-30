@@ -7,12 +7,14 @@ export interface Peg {
 export interface ThreadColor {
   id: string
   hex: string
-  lineCount: number
 }
 
 export interface ColorResult {
   color: ThreadColor
-  sequence: number[]
+  /** Peg path this thread follows, in order. */
+  pegs: number[]
+  /** Wrap side (CW=1 / CCW=-1) used for the transition into pegs[i+1]; length = pegs.length - 1. */
+  sides: (1 | -1)[]
 }
 
 export interface GenerationResult {

@@ -10,7 +10,27 @@ export interface CropTransform {
   offsetY: number
 }
 
+export interface ImageAdjustments {
+  contrast: number
+  brightness: number
+  saturation: number
+  gamma: number
+  blur: number
+  invert: boolean
+  grayscale: boolean
+}
+
 export const DEFAULT_TRANSFORM: CropTransform = { zoom: 1, offsetX: 0, offsetY: 0 }
+
+export const DEFAULT_ADJUSTMENTS: ImageAdjustments = {
+  contrast: 20,
+  brightness: 0,
+  saturation: 0,
+  gamma: 1,
+  blur: 0,
+  invert: false,
+  grayscale: false,
+}
 
 export function loadImageFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -27,6 +47,7 @@ export function drawTransformedImage(
   img: HTMLImageElement,
   size: number,
   transform: CropTransform,
+  blur = 0,
 ) {
   const baseScale = Math.max(size / img.width, size / img.height)
   const scale = baseScale * transform.zoom
@@ -37,20 +58,50 @@ export function drawTransformedImage(
 
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, size, size)
+  ctx.filter = blur > 0 ? `blur(${blur}px)` : 'none'
   ctx.drawImage(img, x, y, drawW, drawH)
+  ctx.filter = 'none'
 }
 
-export function applyContrastBrightness(ctx: CanvasRenderingContext2D, size: number, contrast: number, brightness: number) {
-  if (contrast === 0 && brightness === 0) return
+export function applyImageAdjustments(ctx: CanvasRenderingContext2D, size: number, adjustments: ImageAdjustments) {
+  const { contrast, brightness, saturation, gamma, invert, grayscale } = adjustments
+  if (contrast === 0 && brightness === 0 && saturation === 0 && gamma === 1 && !invert && !grayscale) return
 
   const imageData = ctx.getImageData(0, 0, size, size)
   const { data } = imageData
   const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast))
+  const satFactor = 1 + saturation / 100
+  const gammaExp = 1 / Math.max(0.05, gamma)
+
+  const apply = (v: number) => {
+    let x = v
+    if (gammaExp !== 1) x = 255 * Math.pow(x / 255, gammaExp)
+    x = contrastFactor * (x - 128) + 128 + brightness
+    if (invert) x = 255 - x
+    return Math.min(255, Math.max(0, x))
+  }
 
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = Math.min(255, Math.max(0, contrastFactor * (data[i] - 128) + 128 + brightness))
-    data[i + 1] = Math.min(255, Math.max(0, contrastFactor * (data[i + 1] - 128) + 128 + brightness))
-    data[i + 2] = Math.min(255, Math.max(0, contrastFactor * (data[i + 2] - 128) + 128 + brightness))
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+
+    let rs = r
+    let gs = g
+    let bs = b
+    if (grayscale) {
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b
+      rs = gs = bs = lum
+    } else if (satFactor !== 1) {
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b
+      rs = lum + (r - lum) * satFactor
+      gs = lum + (g - lum) * satFactor
+      bs = lum + (b - lum) * satFactor
+    }
+
+    data[i] = apply(rs)
+    data[i + 1] = apply(gs)
+    data[i + 2] = apply(bs)
   }
 
   ctx.putImageData(imageData, 0, 0)
@@ -61,25 +112,23 @@ export function drawAdjustedImage(
   img: HTMLImageElement,
   size: number,
   transform: CropTransform,
-  contrast: number,
-  brightness: number,
+  adjustments: ImageAdjustments,
 ) {
-  drawTransformedImage(ctx, img, size, transform)
-  applyContrastBrightness(ctx, size, contrast, brightness)
+  drawTransformedImage(ctx, img, size, transform, adjustments.blur)
+  applyImageAdjustments(ctx, size, adjustments)
 }
 
 export function processImage(
   img: HTMLImageElement,
   size: number,
-  contrast: number,
-  brightness: number,
+  adjustments: ImageAdjustments,
   transform: CropTransform,
 ): ProcessedImage {
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')!
-  drawAdjustedImage(ctx, img, size, transform, contrast, brightness)
+  drawAdjustedImage(ctx, img, size, transform, adjustments)
 
   const imageData = ctx.getImageData(0, 0, size, size)
   const { data } = imageData

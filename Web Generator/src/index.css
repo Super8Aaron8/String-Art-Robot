@@ -88,6 +88,8 @@
 
   .corner-tick {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 14px;
     height: 14px;
     pointer-events: none;
