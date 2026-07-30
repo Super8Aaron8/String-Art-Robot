@@ -1,36 +1,24 @@
 # Current Path Route
 
-SLOT 1 | LINES 30 | COLORS 3
+SLOT 1 | LINES 12 | COLORS 1
+
+A test path that exercises the normal branches of `move()` (`src/main.cpp:340`):
+plain CW/CCW moves, a single thread color change (real string-art paths only
+switch thread once, not every line), and the zero-distance and max-distance
+(pin sum 287, the `PIN1+PIN2+PIN3` cap in `include/main.h:4-6`) edges. No pin
+byte is 10 or 13.
 
 | Line | Dir | Pin | Pin1 | Pin2 | Pin3 | Color |
 |-----:|-----|----:|-----:|-----:|-----:|-------|
-| 1 | CW  | 60 | 24 | 36 | 0 |  |
-| 2 | CW  | 144 | 72 | 72 | 0 |  |
-| 3 | CW  | 288 | 120 | 120 | 48 |  |
-| 4 | CCW | 100 | 55 | 45 | 0 |  |
-| 5 | CW  | 60 | 33 | 27 | 0 |  |
-| 6 | CW  | 200 | 120 | 80 | 0 | → color 2 |
-| 7 | CW  | 50 | 25 | 25 | 0 |  |
-| 8 | CCW | 250 | 120 | 119 | 11 |  |
-| 9 | CCW | 70 | 35 | 35 | 0 |  |
-| 10 | CCW | 60 | 44 | 16 | 0 |  |
-| 11 | CCW | 288 | 120 | 120 | 48 |  |
-| 12 | CCW | 90 | 60 | 30 | 0 |  |
-| 13 | CW  | 175 | 88 | 87 | 0 |  |
-| 14 | CW  | 240 | 120 | 115 | 5 |  |
-| 15 | CW  | 0 | 0 | 0 | 0 |  |
-| 16 | CW  | 288 | 120 | 120 | 48 |  |
-| 17 | CCW | 128 | 120 | 8 | 0 |  |
-| 18 | CW  | 172 | 73 | 99 | 0 |  |
-| 19 | CCW | 220 | 115 | 105 | 0 |  |
-| 20 | CW  | 135 | 88 | 47 | 0 |  |
-| 21 | CW  | 30 | 21 | 9 | 0 |  |
-| 22 | CCW | 165 | 61 | 104 | 0 |  |
-| 23 | CCW | 288 | 120 | 120 | 48 | → color 3 |
-| 24 | CW  | 133 | 95 | 38 | 0 |  |
-| 25 | CCW | 262 | 120 | 120 | 22 |  |
-| 26 | CW  | 119 | 7 | 112 | 0 |  |
-| 27 | CW  | 150 | 66 | 84 | 0 |  |
-| 28 | CCW | 148 | 31 | 117 | 0 |  |
-| 29 | CCW | 275 | 120 | 120 | 35 |  |
-| 30 | CW  | 120 | 49 | 71 | 0 |  |
+| 1  | CW  | 150 | 40  | 50  | 60  |  |
+| 2  | CCW | 125 | 100 | 20  | 5   |  |
+| 3  | CW  | 90  | 30  | 30  | 30  | → color 2 |
+| 4  | CW  | 40  | 20  | 20  | 0   |  |
+| 5  | CW  | 0   | 0   | 0   | 0   |  |
+| 6  | CW  | 287 | 120 | 120 | 47  |  |
+| 7  | CW  | 45  | 15  | 15  | 15  |  |
+| 8  | CCW | 120 | 40  | 40  | 40  |  |
+| 9  | CCW | 50  | 50  | 0   | 0   |  |
+| 10 | CCW | 120 | 60  | 60  | 0   |  |
+| 11 | CCW | 140 | 70  | 0   | 70  |  |
+| 12 | CCW | 120 | 120 | 0   | 0   |  |
