@@ -16,4 +16,3 @@ extern optical Optical1;
 extern optical Optical2;
 extern optical Optical3;
 extern optical Optical4;
-extern optical Optical5;

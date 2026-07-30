@@ -9,10 +9,10 @@ void screen(int state, int arr[], double darr[]) {
     Brain.Screen.print("Insert SD-Card &");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Restart Program");
-  } else if (state == CALIBRATE) {
-    Brain.Screen.print("Calibrating and");
-    Brain.Screen.setCursor(2, 1);
+  } else if (state == LOADFILE) {
     Brain.Screen.print("Loading Points");
+  } else if (state == CALIBRATE) {
+    Brain.Screen.print("Calibrating");
   } else if (state == MENU) {
     Brain.Screen.print("Menu");
     Brain.Screen.setCursor(2, 1);
@@ -57,8 +57,14 @@ void screen(int state, int arr[], double darr[]) {
 }
 
 void touchLed(int &state) {
-  if (state == CALIBRATE) {
+  if (state == LOADFILE) {
     TouchLED.setColor(vex::purple);
+  } else if (state == CALIBRATE) {
+    TouchLED.setBlink(vex::purple, 0.5, 0.5);
+    while (!TouchLED.pressing()) { wait(25, msec); }
+    state = MENU;
+    screen(state);
+    touchLed(state);
   } else if (state == MENU) {
     TouchLED.setColor(vex::blue);
   } else if (state == START) {
@@ -94,8 +100,7 @@ void detectThread(int &state) {
   if (state == RUNNING) {
     color nothread = vex::yellow;
     if (Optical1.color() == nothread || Optical2.color() == nothread ||
-        Optical3.color() == nothread || Optical4.color() == nothread ||
-        Optical5.color() == nothread) {
+        Optical3.color() == nothread || Optical4.color() == nothread) {
       state = NOTHREAD;
       screen(state);
       touchLed(state);
