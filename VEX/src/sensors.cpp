@@ -13,6 +13,10 @@ void screen(int state, int arr[], double darr[]) {
     Brain.Screen.print("Loading Points");
   } else if (state == CALIBRATE) {
     Brain.Screen.print("Calibrating");
+    Brain.Screen.setCursor(2, 1);
+    Brain.Screen.print("Ensure Bumper");
+    Brain.Screen.setCursor(3, 1);
+    Brain.Screen.print("Is On");
   } else if (state == MENU) {
     Brain.Screen.print("Menu");
     Brain.Screen.setCursor(2, 1);
@@ -31,7 +35,7 @@ void screen(int state, int arr[], double darr[]) {
     Brain.Screen.print("Total Length:%d",
                        arr[LENGTHA] + arr[LENGTHB] + arr[LENGTHC] + arr[LENGTHD] + arr[LENGTHE]);
     Brain.Screen.setCursor(5, 1);
-    Brain.Screen.print("A:%d B:%d C:%d D:%d E:%d", arr[LENGTHA], arr[LENGTHB], arr[LENGTHC],
+    Brain.Screen.print("A:%dB:%dC:%dD:%dE:%d", arr[LENGTHA], arr[LENGTHB], arr[LENGTHC],
                        arr[LENGTHD], arr[LENGTHE]);
   } else if (state == RUNNING) {
     Brain.Screen.print("Running");
@@ -62,9 +66,6 @@ void touchLed(int &state) {
   } else if (state == CALIBRATE) {
     TouchLED.setBlink(vex::purple, 0.5, 0.5);
     while (!TouchLED.pressing()) { wait(25, msec); }
-    state = MENU;
-    screen(state);
-    touchLed(state);
   } else if (state == MENU) {
     TouchLED.setColor(vex::blue);
   } else if (state == START) {
