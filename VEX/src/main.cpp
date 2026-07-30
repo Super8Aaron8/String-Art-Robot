@@ -675,7 +675,7 @@ you may need to do a funny)
   ls offset is now true lagging position
   */
 
-void moveToNail(int target, int maxNails, int &nailPosition, double &position,
+void moveToNail(int target, int maxNails, int &nailPosition, double &truePosition, double &position,
                 double backlashDeletionDegrees, double leftOffset)
 {
   int dist = 0;
@@ -693,29 +693,67 @@ void moveToNail(int target, int maxNails, int &nailPosition, double &position,
     {
       dist = (target - maxNails) - nailPosition;
     }
-    positionTarget = position + dist * 5;
+    positionTarget = truePosition + dist * 5;
     nailPosition = target;
-
+    truePosition = positionTarget;
     movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
   }
 }
 
+void moveToNail2(int target, int maxNails, int &nailPosition, double &truePosition, double &position,
+                double backlashDeletionDegrees, double leftOffset)
+{
+  int displacementToStandard = 0;
+  int displacementToForward = 0;
+  int displacementToReverse = 0;
+  double positionTarget = 0;
+  int displacement = 0;
+
+displacementToStandard = target-nailPosition;
+displacementToForward = (target+maxNails)-nailPosition;
+displacementToReverse = (target-maxNails)-nailPosition;
+
+displacement = displacementToStandard;
+if (abs(displacement)>(abs(displacementToForward)))
+{
+  displacement = displacementToForward;
+}
+else if (abs (displacement) > abs(displacementToReverse))
+{
+  displacement = displacementToReverse;
+}
+Brain.Screen.clearScreen();
+Brain.Screen.setCursor(1,1);
+Brain.Screen.print("nailmove:", "%d", displacement);
+Brain.Screen.newLine();
+
+    positionTarget = truePosition + double(displacement*5);
+    nailPosition = target;
+    truePosition = positionTarget;
+
+Brain.Screen.print("postar:""%.2f", positionTarget);
+    movePlatter(positionTarget, position, backlashDeletionDegrees, leftOffset);
+  
+}
 int main()
 {
   double leftOffset = 0;
   double position = 0;
   int nailPosition = 0;
+  double truePosition = 0;
   wait(3, seconds);
   zeroPlatter(position, 3, leftOffset);
-  moveToNail(5, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(5, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(30, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(60, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(0, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(0, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(283, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(280, 288, nailPosition, position, 3, leftOffset);
-  moveToNail(275, 288, nailPosition, position, 3, leftOffset);
+  wait(3, seconds);
+  moveToNail2(30, 288, nailPosition, truePosition, position, 3, leftOffset);
+  wait(5, seconds);
+  moveToNail2(60, 288, nailPosition, truePosition, position, 3, leftOffset);
+  wait(5, seconds);
+  moveToNail2(283, 288, nailPosition, truePosition, position, 3, leftOffset);
+  wait(5, seconds);
+  moveToNail2(238, 288, nailPosition, truePosition, position, 3, leftOffset);
+  wait(5, seconds);
+  movePlatter(0, position, 3, leftOffset);
+  
 
   /*
   int state = CALIBRATE;
