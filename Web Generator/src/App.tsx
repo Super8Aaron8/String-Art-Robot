@@ -5,6 +5,7 @@ import ConfigPanel from './components/ConfigPanel'
 import StepperField from './components/StepperField'
 import ScrewPanel from './components/ScrewPanel'
 import ColorListEditor from './components/ColorListEditor'
+import PatternPresetPanel from './components/PatternPresetPanel'
 import PreviewCanvas from './components/PreviewCanvas'
 import { generateCircularPegs } from './lib/pegLayout'
 import {
@@ -21,6 +22,7 @@ import { generateColorSequences } from './lib/stringArt'
 import { buildExportBinary, downloadBinaryFile } from './lib/exportPath'
 import { loadStoredConfig, saveStoredConfig } from './lib/storage'
 import { newId } from './lib/id'
+import { buildPatternResults, PRESET_PREVIEW_OPACITY, type PatternPreset } from './lib/patterns'
 import { DEFAULT_SCREW } from './config/screw'
 import type { GenerationResult, ThreadColor } from './types'
 
@@ -56,6 +58,10 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [isStale, setIsStale] = useState(false)
+  // Set while the preview holds a geometric preset rather than a solved image. Presets aren't
+  // derived from any setting, so the staleness prompt and the Regenerate nudge don't apply —
+  // and Regenerate would in fact throw the pattern away.
+  const [activePresetId, setActivePresetId] = useState<string | null>(null)
 
   const generatingRef = useRef(false)
   const previewColumnRef = useRef<HTMLDivElement>(null)
@@ -110,7 +116,30 @@ export default function App() {
     }
   }
 
+  // Editing anything the solver consumes means the user is back to working on an image, so the
+  // preset preview stops claiming ownership of the canvas. Presets change the same state, hence
+  // these wrappers rather than clearing the flag inside a shared effect.
+  // A preset's result is tied to its own peg ring and thread colours, so once the user edits
+  // either it can't be shown or repainted — and keeping it would strand the UI on a blank
+  // canvas asking for a Regenerate that's disabled whenever no image is loaded. Drop it.
+  const leavePatternMode = () => {
+    if (!activePresetId) return
+    setActivePresetId(null)
+    setResult(null)
+  }
+
+  const handlePegCountChange = (v: number) => {
+    setPegCount(v)
+    leavePatternMode()
+  }
+
+  const handleColorsChange = (next: ThreadColor[]) => {
+    setColors(next)
+    leavePatternMode()
+  }
+
   const handleMultiColorChange = (v: boolean) => {
+    leavePatternMode()
     setMultiColor(v)
     if (v && colors.length === 1) {
       setColors([colors[0], { id: newId('c'), hex: '#EF4444' }])
@@ -138,6 +167,7 @@ export default function App() {
       })
       setResult({ pegCount, radius, results })
       setIsStale(false)
+      setActivePresetId(null)
     } finally {
       generatingRef.current = false
       setGenerating(false)
@@ -154,6 +184,18 @@ export default function App() {
     setIsStale(true)
   }, [processed, pegCount, minPegDistance, colors, totalLines, renderScrew.radius])
 
+  const applyPreset = (preset: PatternPreset) => {
+    const { colors: presetColors, results } = buildPatternResults(preset)
+    // The preview only renders a result whose pegCount matches the board, so the board has to
+    // move to the preset's ring size, not the other way round.
+    setPegCount(preset.pegCount)
+    setColors(presetColors)
+    setMultiColor(presetColors.length > 1)
+    setResult({ pegCount: preset.pegCount, radius, results })
+    setActivePresetId(preset.id)
+    setExportError(null)
+  }
+
   const handleExport = () => {
     if (!result) return
     try {
@@ -165,6 +207,10 @@ export default function App() {
   }
 
   const previewResults = result && result.pegCount === pegCount ? result.results : null
+  // Applying a preset writes pegCount and colors, which trips the staleness effect above on the
+  // very next render — so pattern mode suppresses the prompt outright rather than trying to
+  // out-order it.
+  const showStalePrompt = isStale && !!result && !generating && !activePresetId
   const generatedLineCount = result ? result.results.reduce((sum, r) => sum + r.pegs.length - 1, 0) : 0
   const progressPercent = progress ? (progress.lineIndex / progress.lineTotal) * 100 : 0
 
@@ -190,7 +236,7 @@ export default function App() {
               pegCount={pegCount}
               minPegDistance={minPegDistance}
               lineWeight={lineWeight}
-              onPegCountChange={setPegCount}
+              onPegCountChange={handlePegCountChange}
               onMinPegDistanceChange={setMinPegDistance}
               onLineWeightChange={setLineWeight}
             />
@@ -206,9 +252,10 @@ export default function App() {
               colors={colors}
               totalLines={totalLines}
               onMultiColorChange={handleMultiColorChange}
-              onColorsChange={setColors}
+              onColorsChange={handleColorsChange}
               onTotalLinesChange={setTotalLines}
             />
+            <PatternPresetPanel activePresetId={activePresetId} onApply={applyPreset} />
           </div>
 
           <div
@@ -254,7 +301,7 @@ export default function App() {
                   radius={radius}
                   results={previewResults}
                   screw={renderScrew}
-                  lineWeight={lineWeight}
+                  lineWeight={activePresetId ? PRESET_PREVIEW_OPACITY : lineWeight}
                 />
               </div>
 
@@ -293,10 +340,16 @@ export default function App() {
                     onClick={() => runGenerate()}
                     disabled={!processed || generating}
                     className={`flex-1 rounded-[1px] border border-red bg-red px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-0 shadow-btn-cta transition-all hover:-translate-y-0.5 hover:bg-transparent hover:text-red hover:shadow-btn-cta-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${
-                      !generating && isStale && result ? 'animate-pulse' : ''
+                      showStalePrompt ? 'animate-pulse' : ''
                     }`}
                   >
-                    {generating ? 'Generating…' : result ? (isStale ? 'Regenerate*' : 'Regenerate') : 'Generate'}
+                    {generating
+                      ? 'Generating…'
+                      : result && !activePresetId
+                        ? isStale
+                          ? 'Regenerate*'
+                          : 'Regenerate'
+                        : 'Generate'}
                   </button>
                   <div className="w-20 shrink-0">
                     <StepperField label="Slot" value={slot} min={1} max={8} step={1} onChange={setSlot} />
@@ -314,7 +367,7 @@ export default function App() {
                     is always rendered so toggling it doesn't reflow the flex-1 preview above. */}
                 <p className={`shrink-0 font-mono text-[0.62rem] ${exportError ? 'text-red' : 'text-text-2'}`}>
                   {exportError ??
-                    (isStale && result && !generating
+                    (showStalePrompt
                       ? 'Settings changed — preview is out of date. Click Regenerate to update it.'
                       : ' ')}
                 </p>
