@@ -39,8 +39,10 @@ export default {
         body: ['"Space Grotesk"', 'sans-serif'],
       },
       boxShadow: {
-        'btn-cta': '0 0 32px rgba(239, 68, 68, 0.4), 0 4px 24px rgba(0, 0, 0, 0.55)',
-        'btn-cta-hover': '0 0 44px rgba(239, 68, 68, 0.6), 0 4px 24px rgba(0, 0, 0, 0.55)',
+        // Biased upward (negative y) so the glow reads as coming off the button without
+        // bleeding down into whatever sits directly below it (status text, stats row).
+        'btn-cta': '0 -2px 18px rgba(239, 68, 68, 0.4), 0 4px 24px rgba(0, 0, 0, 0.55)',
+        'btn-cta-hover': '0 -4px 26px rgba(239, 68, 68, 0.6), 0 4px 24px rgba(0, 0, 0, 0.55)',
         panel: '0 24px 80px rgba(0, 0, 0, 0.5)',
       },
       letterSpacing: {
