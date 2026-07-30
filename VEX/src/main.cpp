@@ -15,15 +15,16 @@
 #include "vex.h"
 
 const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 500,
-          NAIL = 288;
-const double PINRATIO = 288.0 * 0.25, TOLERANCE = 5, BACKLASH = 3;
-const double pid[4] = {1, 1, 0.6, 1};
+          MAXNAIL = 287;
+const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 1.5, BACKLASH = 5, NAILNUM = 288;
+const double pid[4] = {2.5, 1, 0.6, 1};
 
 void calibrate(int &state) {
   state = LOADFILE;
   PMotors.resetPosition();
   SMotor.resetPosition();
   SMotor.stop(hold);
+  PMotors.stop(hold);
   TouchLED.on(vex::purple, 100);
   if (!Brain.SDcard.isInserted()) { state = INSERTSD; }
   Timer.reset();
@@ -97,7 +98,7 @@ void updateMotorPosition(double position[2]) {
   pos1 = PMotor1.position(rev) * PINRATIO;
   pos2 = PMotor2.position(rev) * PINRATIO;
   pos3 = PMotor3.position(rev) * PINRATIO;
-  position[PMOTORS] = normalize(((pos1 + pos2 + pos3) / 3.0), 288, true);
+  position[PMOTORS] = dnormalize(((pos1 + pos2 + pos3) / 3.0), NAILNUM, true);
   position[SMOTOR] = SMotor.position(deg);
 }
 
@@ -106,7 +107,7 @@ double getMotorPosition(int motor = 0) {
   pos1 = PMotor1.position(rev) * PINRATIO;
   pos2 = PMotor2.position(rev) * PINRATIO;
   pos3 = PMotor3.position(rev) * PINRATIO;
-  ppos = normalize(((pos1 + pos2 + pos3) / 3.0), 288, true);
+  ppos = dnormalize(((pos1 + pos2 + pos3) / 3.0), NAILNUM, true);
   spos = SMotor.position(deg);
   if (motor == 1) {
     return ppos;
@@ -116,8 +117,47 @@ double getMotorPosition(int motor = 0) {
   return 0;
 }
 
+void pMove(int &state, double target) {
+  int dir = 0, count = 0, v = 100, error = 0;
+  double pos = getMotorPosition(1);
+  int position = pos;
+  double err = 0;
+  double dis[3] = {0, 0, 0};
+  while (count < 5) {
+    pos = getMotorPosition(1);
+    position = pos;
+    err = (target - pos);
+    dis[0] = err;
+    dis[1] = err - NAILNUM;
+    dis[2] = err + NAILNUM;
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2 - i; j++) {
+        if (fabs(dis[j]) > fabs(dis[j + 1])) {
+          double tmp = dis[j];
+          dis[j] = dis[j + 1];
+          dis[j + 1] = tmp;
+        }
+      }
+    }
+    err = dis[0];
+    if (err < 0) {
+      dir = CCW;
+    } else {
+      dir = CW;
+    }
+    v = clamp(fabs(pid[PKP] * err), 0, 100);
+    PMotors.spin(forward, dir * v, percent);
+    (fabs(err) <= PTOLERANCE) ? count++ : count = 0;
+    wait(10, msec);
+    error = err;
+    printf("%d # %d # %d # %d\n", count, error, v, position);
+  }
+  PMotors.stop(hold);
+  wait(50, msec);
+}
+
 void platterMoveOLD(double target) {
-  double tar = target / PINRATIO;
+  double tar = (target / PINRATIO);
   PMotors.setVelocity(100, percent);
   PMotors.spinTo(tar, rev, true);
 }
@@ -138,7 +178,7 @@ void moveSling(int dir) {
     }
     velocity = clamp((pid[SKP] * error), 0, 100);
     (velocity > 0) ? SMotor.spin(forward, dir * velocity, pct) : SMotor.stop(hold);
-    (error <= TOLERANCE) ? count++ : count = 0;
+    (error <= STOLERANCE) ? count++ : count = 0;
     printf("%d | %d | %d\n", count, error, velocity);
     wait(10, msec);
   }
@@ -204,8 +244,8 @@ void zeroPlatter(int &state, double &position, double &leftOffset, double &butto
   run function
   it will move the nail bed right. hit the bumper before you get to the intended zero nail. ignore
   that this step makes no sense. it will be somewhat removed later click the right arrow until the
-  needle lines up with the intended nail click check wait until the platter moves about 1cm right of
-  the intended nail click the left arrow until the needle lines up again with the intended nail
+  needle lines up with the intended nail click check wait until the platter moves about 1cm right
+  of the intended nail click the left arrow until the needle lines up again with the intended nail
   click check
   platter should be zero'd
   */
@@ -237,26 +277,26 @@ void zeroPlatter(int &state, double &position, double &leftOffset, double &butto
   PMotor1.setPosition(BACKLASH, degrees);
   PMotor2.setPosition(BACKLASH, degrees);
 
-movePlatter(-20.0, position, 0);
-//instruct user to remove bumper, wait for confirmation
-TouchLED.setBlink(vex::purple, 0.5, 0.5);
-while (!TouchLED.pressing()) { wait(25, msec); }
+  // movePlatter(-20.0, position, 0);
+  // //instruct user to remove bumper, wait for confirmation
+  // TouchLED.setBlink(vex::purple, 0.5, 0.5);
+  // while (!TouchLED.pressing()) { wait(25, msec); }
 
-movePlatter(0.0, position, 0);
+  // movePlatter(0.0, position, 0);
 
-index = 0.5;
-wait(3, seconds);
-// instruct user to remove bumper
-while (correct == false) {
+  index = 0.5;
+  wait(3, seconds);
+  // instruct user to remove bumper
+  while (correct == false) {
 
-  while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing())) {}
-  if (Brain.buttonCheck.pressing()) correct = true;
-  else {
-    while (Brain.buttonRight.pressing()) {}
+    while (!(Brain.buttonRight.pressing() || Brain.buttonCheck.pressing())) {}
+    if (Brain.buttonCheck.pressing()) correct = true;
+    else {
+      while (Brain.buttonRight.pressing()) {}
 
-    movePlatter(index, position, 0);
-    index += 0.5;
-  }
+      movePlatter(index, position, 0);
+      index += 0.5;
+    }
   }
   buttonOffset = PMotor3.position(degrees);
   PMotor3.setPosition(0, degrees);
@@ -279,7 +319,7 @@ while (correct == false) {
   }
   leftOffset = PMotor3.position(degrees);
   Brain.Screen.print("%.2f", leftOffset);
-  state == MENU;
+  state = MENU;
   screen(state);
   touchLed(state);
 }
@@ -293,8 +333,8 @@ void moveToNail(int target, int &nailPosition, double &truePosition, double &pos
   int displacement = 0;
 
   displacementToStandard = target - nailPosition;
-  displacementToForward = (target + NAIL) - nailPosition;
-  displacementToReverse = (target - NAIL) - nailPosition;
+  displacementToForward = (target + MAXNAIL) - nailPosition;
+  displacementToReverse = (target - MAXNAIL) - nailPosition;
   if (displacementToStandard != 0) {
     displacement = displacementToStandard;
     if (abs(displacement) > (abs(displacementToForward))) {
@@ -311,9 +351,7 @@ void moveToNail(int target, int &nailPosition, double &truePosition, double &pos
     nailPosition = target;
     truePosition = positionTarget;
 
-    Brain.Screen.print("postar:"
-                       "%.2f",
-                       positionTarget);
+    Brain.Screen.print("postar:%.2f", positionTarget);
     movePlatter(positionTarget, position, leftOffset);
   }
 }
@@ -345,14 +383,15 @@ void homePlatter(double &buttonOffset) {
   PMotor2.setPosition(BACKLASH - buttonOffset, degrees);
   wait(3, seconds);
   // instruct user to remove bumper
-  // if you want it to go back to zero now you can. I haven't had it do that here because you might
-  // not want to do that idk
+  // if you want it to go back to zero now you can. I haven't had it do that here because you
+  // might not want to do that idk
 }
 
 void move(int &state, int points[], int config[], int progress[], int nailPosition,
           double truePosition, double position, double leftOffset) {
   touchLed(state);
-  int dir = 0, move = 0;
+  int dir = 0;
+  double move = 0;
   while ((state != INSERTSD || state != ERROR || state != FINISH) &&
          (progress[LINE] < config[LINES])) {
     int i = 4 * progress[LINE];
@@ -383,9 +422,11 @@ void move(int &state, int points[], int config[], int progress[], int nailPositi
         }
         if (state == RUNNING) {
           move = points[i + 1] + points[i + 2] + points[i + 3];
-          printf("%d\n", move);
-          //platterMoveOLD(move);
-          moveToNail(move, nailPosition, truePosition, position, leftOffset);
+          int m = move;
+          printf("%d\n", m);
+          // platterMoveOLD(move);
+          // moveToNail(move, nailPosition, truePosition, position, leftOffset);
+          pMove(state, move);
           printf("Sling %f\n", SMotor.position(deg));
           moveSling(dir);
           printf("Done\n");
@@ -425,7 +466,7 @@ int main() {
   printf("Calibrate\n");
   loadFile(state, points, config);
   printf("LoadFile\n");
-  zeroPlatter(state, position, leftOffset, buttonOffset);
+  // zeroPlatter(state, position, leftOffset, buttonOffset);
   printf("Calibrate Platter\n");
   menu(state, config);
   printf("Menu\n");

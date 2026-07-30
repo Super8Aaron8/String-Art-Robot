@@ -1,9 +1,9 @@
 #pragma once
 
 // COLOR & DIR | 62 CW, 60, CCW, 65 - 69 Color CW, 97 - 101 Color CCW
-// PIN1        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) max 287
-// PIN2        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) max 287
-// PIN3        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) max 287
+// PIN1        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) min 0 max 287
+// PIN2        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) min 0 max 287
+// PIN3        | 0 to 120 (DON'T USE 10 OR 13) | (PIN1 + PIN2 + PIN3) min 0 max 287
 
 enum Button { CHECK, RIGHT, LEFT };
 enum Progress { LINE, PROGRESS, CURRENTCOLOR, FUTURECOLOR, ENDTIME };
