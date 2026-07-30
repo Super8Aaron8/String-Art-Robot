@@ -31,6 +31,73 @@ void calibrate(int &state) {
   touchLed(state);
 }
 
+  //zero all motors
+  //set m1 m2 to hold and their positions zero
+  //blind drive motor 3 until stop using motor encoder until no spin
+  //zero motor 
+  // blind drive until stop other direction same technique
+  //calculate difference, cut in half and book
+  
+
+
+void calibratePlatter(int &state) {
+  int velocity = 60;
+  
+  state = CALIBRATE;
+  TouchLED.on(vex::orange, 100);
+  PMotors.setStopping(hold);
+  //hardstop all motors to bumper and zero all positions. 
+  int ok = 0;
+  PMotors.setVelocity(velocity, percent);
+  PMotors.spin(forward);  
+  PMotors.setMaxTorque(0.01, Nm);
+  while (ok <= 50) {
+    if (  (PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) && (PMotor3.velocity(dps) == 0)  ) {
+      ok++;
+    } else {
+      ok = 0;
+      PMotors.setVelocity(velocity, percent);
+      PMotors.spin(forward);    
+      printf("motor1 velocity: %d dps\n", (int)PMotor1.velocity(dps));  
+        }      
+    wait(10, msec);
+  }
+  PMotors.stop();
+  PMotor1.setPosition(0, degrees);    
+  PMotor2.setPosition(0, degrees);    
+  PMotor3.setPosition(0, degrees);    
+  printf("platter zeroed \n");
+ 
+  //spin m2 until also stopped, zero m2
+  ok = 0;
+  PMotor2.setMaxTorque(0.04, Nm);
+  PMotor2.setVelocity(-20, percent);
+  while (ok <=50) {
+  if (PMotor2.velocity(dps) == 0) {
+    ok++;
+    }   else {
+      PMotor2.spin(forward);    
+    }
+    printf("motor2 velocity: %d dps\n", (int)PMotor2.velocity(dps));    
+    wait(10, msec);
+  }
+  printf("Offset: %d\n  ", (int)PMotor2.position(degrees));
+  PMotor2.stop();
+  PMotor1.setStopping(hold);
+  PMotor2.setStopping(hold);
+  PMotor3.setStopping(hold);
+  PMotor2.setPosition(0, degrees);
+  printf(" degrees \n");
+
+
+  PMotors.setVelocity(20, percent);
+  PMotors.spinToPosition(-90, degrees, true);
+  PMotors.stop();
+  wait(1, seconds);
+
+}
+
+
 void loadFile(int &state, int points[], int config[]) { // TODO add slots
   int rawConfig[RAWCONFIGNUM] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   if (Brain.SDcard.exists("path.txt")) {
@@ -405,6 +472,7 @@ void move(int &state, int points[], int config[], int progress[], int nailPositi
   touchLed(state);
 }
 
+
 int main() {
   double leftOffset = 0;
   double position = 0;
@@ -425,7 +493,7 @@ int main() {
   printf("Calibrate\n");
   loadFile(state, points, config);
   printf("LoadFile\n");
-  zeroPlatter(state, position, leftOffset, buttonOffset);
+  calibratePlatter(state);
   printf("Calibrate Platter\n");
   menu(state, config);
   printf("Menu\n");
