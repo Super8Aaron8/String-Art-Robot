@@ -577,6 +577,22 @@ void movePlatter(double positionTarget, double &position, double backlashDeletio
 
 void zeroPlatter(double &position, double backlashDeletionDegrees, double &leftOffset)
 {
+/*
+to zero platter:
+place needle to the right of the intended zero nail by about 1cm (not exact)
+run function
+it will move the nail bed right. hit the bumper before you get to the intended zero nail. ignore that this step makes no sense. it will be somewhat removed later
+click the right arrow until the needle lines up with the intended nail
+click check
+wait until the platter moves about 1cm right of the intended nail
+click the left arrow until the needle lines up again with the intended nail
+click check
+platter should be zero'd
+*/
+
+
+
+
   double index = 0.5;
   bool correct = false;
 
