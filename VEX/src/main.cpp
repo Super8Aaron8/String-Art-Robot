@@ -16,8 +16,8 @@
 
 const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, SLOTSIZE = 4096, MAXPOINTS = 5000,
           MAXNAIL = 287;
-const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 1.5, BACKLASH = 5, NAILNUM = 288;
-const double pid[4] = {2.5, 1, 0.6, 1};
+const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 0.75, BACKLASH = 5, NAILNUM = 288;
+const double pid[4] = {2, 1, 0.6, 1};
 
 void calibrate(int &state) {
   state = LOADFILE;
@@ -40,7 +40,7 @@ void calibrate(int &state) {
 // calculate difference, cut in half and book
 
 void calibratePlatter(int &state) {
-  int velocity = 60;
+  int velocity = 20;
 
   state = CALIBRATE;
   screen(state);
@@ -50,17 +50,18 @@ void calibratePlatter(int &state) {
   int ok = 0;
   PMotors.setMaxTorque(0.01, Nm);
 
-  while (!Bumper.pressing()) {
-    PMotors.spin(forward, velocity, percent);
-    printf("motor1 velocity: %d dps\n", (int)PMotor1.velocity(dps));
-    wait(10, msec);
-  }
-  wait(500, msec);
+  // while (!Bumper.pressing()) {
+  //   PMotors.spin(forward, velocity, percent);
+  //   printf("motor1 velocity: %d dps\n", (int)PMotor1.velocity(dps));
+  //   wait(10, msec);
+  // }
+  // wait(500, msec);
 
-  /*
+       PMotors.setVelocity(velocity, percent);
+      PMotors.spin(forward);
   while (ok <= 25) {
-    if ((PMotor1.velocity(dps) <= 60) && (PMotor2.velocity(dps) <= 60) &&
-        (PMotor3.velocity(dps) <= 60)) {
+    if ((PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
+        (PMotor3.velocity(dps) == 0)) {
       ok++;
     } else {
       ok = 0;
@@ -70,7 +71,7 @@ void calibratePlatter(int &state) {
     }
     wait(10, msec);
   }
-  */
+  
 
   PMotors.stop();
   PMotor1.setPosition(0, degrees);
@@ -100,7 +101,7 @@ void calibratePlatter(int &state) {
   printf(" degrees \n");
 
   PMotors.setVelocity(20, percent);
-  PMotors.spinToPosition(-90, degrees, true);
+  PMotors.spinToPosition(-102, degrees, true);
   PMotors.stop();
   wait(1, seconds);
   state = MENU;
