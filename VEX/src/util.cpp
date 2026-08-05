@@ -35,7 +35,7 @@ int normalize(int num, int multiple, bool pos) {
 double dnormalize(double num, double multiple, bool pos) {
   if (multiple != 0) {
     if (pos) {
-      num = fabs(fmod(num, multiple));
+      num = fmod(fmod(num, multiple) + multiple, multiple);
     } else {
       num = fmod(num, multiple);
     }
