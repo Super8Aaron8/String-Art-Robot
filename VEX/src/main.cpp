@@ -15,8 +15,7 @@
 #include "vex.h"
 
 const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, MAXPOINTS = 5000;
-const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 0.75, BACKLASH = 5,
-             NAILNUM = 288;
+const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 0.75, NAILNUM = 288;
 const double pid[2] = {2, 0.6};
 
 void calibrate(int &state) {
@@ -36,43 +35,6 @@ void calibrate(int &state) {
     touchLed(state);
   }
   Timer.reset();
-}
-
-void calibratePlatter(int &state) {
-  state = CALIBRATE;
-  int count = 0;
-  screen(state);
-  touchLed(state);
-  PMotors.setMaxTorque(0.01, Nm);
-  PMotors.spin(forward, 20, percent);
-  while (count <= 25) {
-    if ((PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
-        (PMotor3.velocity(dps) == 0)) {
-      count++;
-    } else {
-      count = 0;
-    }
-    wait(10, msec);
-  }
-  count = 0;
-  PMotors.stop();
-  PMotors.setPosition(0, degrees);
-  PMotor2.setMaxTorque(0.04, Nm);
-  while (count <= 50) {
-    if (PMotor2.velocity(dps) == 0) {
-      count++;
-    } else {
-      PMotor2.spin(forward, -20, percent);
-    }
-    wait(10, msec);
-  }
-  PMotor2.stop();
-  PMotor2.setPosition(0, degrees);
-  PMotors.setVelocity(20, percent);
-  wait(1, seconds);
-  state = MENU;
-  screen(state);
-  touchLed(state);
 }
 
 void loadFile(int &state, int points[], int config[]) {
@@ -212,6 +174,46 @@ void moveSling(int dir) {
   }
   SMotor.stop(hold);
   wait(50, msec);
+}
+
+void calibratePlatter(int &state) {
+  state = CALIBRATE;
+  int count = 0;
+  screen(state);
+  touchLed(state);
+  PMotors.setMaxTorque(0.01, Nm);
+  PMotors.spin(forward, 20, percent);
+  while (count <= 25) {
+    if ((PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
+        (PMotor3.velocity(dps) == 0)) {
+      count++;
+    } else {
+      count = 0;
+    }
+    wait(10, msec);
+  }
+  count = 0;
+  PMotors.stop();
+  PMotors.setPosition(0, degrees);
+  PMotor2.setMaxTorque(0.04, Nm);
+  while (count <= 50) {
+    if (PMotor2.velocity(dps) == 0) {
+      count++;
+    } else {
+      PMotor2.spin(forward, -20, percent);
+    }
+    wait(10, msec);
+  }
+  PMotor2.stop();
+  PMotor2.setPosition(0, degrees);
+  PMotors.setVelocity(20, percent);
+  wait(1, seconds);
+  movePlatter(state, 120);
+  movePlatter(state, 240);
+  movePlatter(state, 0);
+  state = MENU;
+  screen(state);
+  touchLed(state);
 }
 
 void move(int &state, int points[], int config[], int progress[]) {
