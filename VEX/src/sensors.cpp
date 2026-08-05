@@ -2,6 +2,8 @@
 #include "config.h"
 #include "main.h"
 
+using namespace vex;
+
 void screen(int state, int arr[], double darr[]) {
   Brain.Screen.clearScreen();
   Brain.Screen.setCursor(1, 1);
@@ -40,11 +42,7 @@ void screen(int state, int arr[], double darr[]) {
   } else if (state == RUNNING) {
     Brain.Screen.print("Running");
     Brain.Screen.setCursor(2, 1);
-    Brain.Screen.print("L:%d", arr[LINE]);
-    Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Pmotor:%f", PMotor1.position(deg));
-    Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Smotor:%f", (SMotor.position(deg) * 1.5));
+    Brain.Screen.print("Line:%d/%d", arr[LINE], arr[LINES]);
   } else if (state == CHANGETHREAD) {
     Brain.Screen.print("Change Thread");
     Brain.Screen.setCursor(2, 1);
@@ -97,11 +95,17 @@ void touchLed(int &state) {
   }
 }
 
-void detectThread(int &state) {
+void calibrateThread(color thread[4]) {
+  thread[0] = Optical1.color();
+  thread[1] = Optical2.color();
+  thread[2] = Optical3.color();
+  thread[3] = Optical4.color();
+}
+
+void detectThread(int &state, color thread[4]) {
   if (state == RUNNING) {
-    color nothread = vex::yellow;
-    if (Optical1.color() == nothread || Optical2.color() == nothread ||
-        Optical3.color() == nothread || Optical4.color() == nothread) {
+    if (Optical1.color() != thread[0] || Optical2.color() != thread[1] ||
+        Optical3.color() != thread[2] || Optical4.color() != thread[3]) {
       state = NOTHREAD;
       screen(state);
       touchLed(state);

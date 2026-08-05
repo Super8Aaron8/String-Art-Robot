@@ -9,7 +9,7 @@ enum Button { CHECK, RIGHT, LEFT };
 enum Progress { LINE, PROGRESS, CURRENTCOLOR, FUTURECOLOR, ENDTIME };
 enum Position { PMOTORS, SMOTOR };
 enum Sling { CCW = -1, IN = 0, CW = 1 };
-enum Pid { PKP, PKD, SKP, SKD };
+enum Pid { PKP, SKP };
 enum State {
   INSERTSD,
   LOADFILE,
