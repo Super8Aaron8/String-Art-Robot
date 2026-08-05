@@ -1,0 +1,19 @@
+{
+	"extension": {
+		"version": "0.8.2026020401",
+		"json": 2
+	},
+	"project": {
+		"name": "robot",
+		"description": "",
+		"creationDate": "7/20/2026, 9:06:39 PM",
+		"platform": "IQ2",
+		"language": "cpp",
+		"slot": 7,
+		"sdkVersion": "IQ2_20250520_15_00_00",
+		"cpp": {
+			"includePath": [],
+			"printf_float": false
+		}
+	}
+}

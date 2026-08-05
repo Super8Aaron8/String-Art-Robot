@@ -1,6 +1,7 @@
 /bin
 /build
-/.vscode
-/vex
-makefile
-compile_commands.json
+
+c_cpp_properties.json
+launch.json
+settings.json
+extensions.json
