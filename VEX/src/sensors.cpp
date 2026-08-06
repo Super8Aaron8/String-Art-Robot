@@ -4,7 +4,7 @@
 
 using namespace vex;
 
-void screen(int state, int arr[], double darr[]) {
+void screen(int state, int arr[], double darr[]) { // Written by Aaron Lew
   Brain.Screen.clearScreen();
   Brain.Screen.setCursor(1, 1);
   if (state == INSERTSD) {
@@ -52,13 +52,13 @@ void screen(int state, int arr[], double darr[]) {
   } else if (state == FINISH) {
     Brain.Screen.print("Finished");
     Brain.Screen.setCursor(2, 1);
-    Brain.Screen.print("%f", Timer.value());
+    Brain.Screen.print("%d", arr[ENDTIME]);
   } else {
     Brain.Screen.print("ERROR");
   }
 }
 
-void touchLed(int &state) {
+void touchLed(int &state) { // Written by Aaron Lew
   if (state == LOADFILE) {
     TouchLED.setColor(vex::purple);
   } else if (state == CALIBRATE) {
@@ -88,21 +88,22 @@ void touchLed(int &state) {
     touchLed(state);
   } else if (state == FINISH) {
     TouchLED.setBlink(vex::white, 0.5, 0.5);
-    while (state == FINISH) { wait(25, msec); }
+    while (!TouchLED.pressing()) { wait(25, msec); }
+    Brain.programStop();
   } else {
     TouchLED.setBlink(vex::red, 0.5, 0.5);
     while (true) { wait(25, msec); }
   }
 }
 
-void calibrateThread(color thread[4]) {
+void calibrateThread(color thread[4]) { // Written by Aaron Lew
   thread[0] = Optical1.color();
   thread[1] = Optical2.color();
   thread[2] = Optical3.color();
   thread[3] = Optical4.color();
 }
 
-void detectThread(int &state, color thread[4]) {
+void detectThread(int &state, color thread[4]) { // Written by Aaron Lew
   if (state == RUNNING) {
     if (Optical1.color() != thread[0] || Optical2.color() != thread[1] ||
         Optical3.color() != thread[2] || Optical4.color() != thread[3]) {

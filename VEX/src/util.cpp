@@ -1,7 +1,7 @@
 #include "util.h"
 #include "vex.h"
 
-int clamp(int num, int lower, int upper) {
+int clamp(int num, int lower, int upper) { // Written by Aaron Lew
   if (num > upper) {
     num = upper;
   } else if (num < lower) {
@@ -10,7 +10,7 @@ int clamp(int num, int lower, int upper) {
   return num;
 }
 
-double dclamp(double num, double lower, double upper) {
+double dclamp(double num, double lower, double upper) { // Written by Aaron Lew
   if (num > upper) {
     num = upper;
   } else if (num < lower) {
@@ -19,10 +19,10 @@ double dclamp(double num, double lower, double upper) {
   return num;
 }
 
-int normalize(int num, int multiple, bool pos) {
+int normalize(int num, int multiple, bool pos) { // Written by Aaron Lew
   if (multiple != 0) {
     if (pos) {
-      num = abs(num % multiple);
+      num = ((num % multiple) + multiple) % multiple;
     } else {
       num = num % multiple;
     }
@@ -32,7 +32,7 @@ int normalize(int num, int multiple, bool pos) {
   }
 }
 
-double dnormalize(double num, double multiple, bool pos) {
+double dnormalize(double num, double multiple, bool pos) { // Written by Aaron Lew
   if (multiple != 0) {
     if (pos) {
       num = fmod(fmod(num, multiple) + multiple, multiple);

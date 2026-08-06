@@ -14,12 +14,13 @@
 #include "util.h"
 #include "vex.h"
 
-const int RAWCONFIGNUM = 17, CONFIGNUM = 7, SLOTNUM = 8, MAXPOINTS = 5000;
-const double PINRATIO = 288.0 * 0.25, STOLERANCE = 5, PTOLERANCE = 0.75, NAILNUM = 288;
-const double pid[2] = {2, 0.6};
+const int RAWCONFIGNUM = 17, CONFIGNUM = 8, SLOTNUM = 8, MAXPOINTS = 5000;
+const double NAILNUM = 288, PINRATIO = NAILNUM * 0.25;
+const double pid[4] = {2, 0.75, 0.6, 5};
 
-void calibrate(int &state) {
+void calibrate(int &state) { // Written by Aaron Lew
   state = LOADFILE;
+  TouchLED.on(vex::purple, 100);
   screen(state);
   touchLed(state);
   PMotors.resetPosition();
@@ -28,22 +29,20 @@ void calibrate(int &state) {
   PMotors.stop(hold);
   SMotor.setStopping(hold);
   PMotors.setStopping(hold);
-  TouchLED.on(vex::purple, 100);
-  if (!Brain.SDcard.isInserted()) {
-    state = INSERTSD;
-    screen(state);
-    touchLed(state);
-  }
+  Optical1.setLight(ledState::on);
+  Optical2.setLight(ledState::on);
+  Optical3.setLight(ledState::on);
+  Optical4.setLight(ledState::on);
   Timer.reset();
 }
 
-void loadFile(int &state, int points[], int config[]) {
+void loadFile(int &state, int points[], int config[]) { // Written by Aaron Lew
   int rawConfig[RAWCONFIGNUM] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   if (Brain.SDcard.exists("path.txt")) {
     int fileSize = Brain.SDcard.size("path.txt");
     uint8_t buffer[fileSize];
     Brain.SDcard.loadfile("path.txt", buffer, sizeof(buffer));
-    for (int i = 0; i < RAWCONFIGNUM; i++) {
+    for (int i = 0; i < RAWCONFIGNUM; i++) { //TODO finish slot config loading
       rawConfig[i] = buffer[i];
       wait(1, msec);
     }
@@ -51,7 +50,7 @@ void loadFile(int &state, int points[], int config[]) {
     config[LINES] = (1000 * rawConfig[LINES4]) + (100 * rawConfig[LINES3]) +
                     (10 * rawConfig[LINES2]) + (1 * rawConfig[LINES1]);
     config[COLORS] = (10 * rawConfig[COLORS2]) + (1 * rawConfig[COLORS1]);
-    for (int i = 0; i < (fileSize - RAWCONFIGNUM); i++) {
+    for (int i = 0; i < (fileSize - RAWCONFIGNUM); i++) { // TODO finish slot point loading
       points[i] = buffer[i + RAWCONFIGNUM];
       wait(1, msec);
     }
@@ -65,7 +64,7 @@ void loadFile(int &state, int points[], int config[]) {
   }
 }
 
-void menu(int &state, int config[]) {
+void menu(int &state, int config[]) { // Written by Aaron Lew
   while (state == MENU) {
     screen(state, config);
     touchLed(state);
@@ -91,7 +90,7 @@ void menu(int &state, int config[]) {
   }
 }
 
-void updateMotorPosition(double position[2]) {
+void updateMotorPosition(double position[2]) { // Written by Noah Oliver Pang
   double pos1 = 0, pos2 = 0, pos3 = 0;
   pos1 = PMotor1.position(rev) * PINRATIO;
   pos2 = PMotor2.position(rev) * PINRATIO;
@@ -100,7 +99,7 @@ void updateMotorPosition(double position[2]) {
   position[SMOTOR] = SMotor.position(deg);
 }
 
-double getMotorPosition(int motor = 0) {
+double getMotorPosition(int motor = 0) { // Written by Noah Oliver Pang
   double pos1 = 0, pos2 = 0, pos3 = 0, ppos = 0, spos = 0;
   pos1 = PMotor1.position(rev) * PINRATIO;
   pos2 = PMotor2.position(rev) * PINRATIO;
@@ -115,19 +114,17 @@ double getMotorPosition(int motor = 0) {
   return 0;
 }
 
-void movePlatter(int &state, double target) {
-  int dir = 0, count = 0, v = 100, error = 0;
+void movePlatter(int &state, double target) { // Written by Aaron Lew
+  int dir = 0, count = 0, v = 100;
   double pos = getMotorPosition(1);
-  int position = pos;
-  double err = 0;
+  double error = 0;
   double dis[3] = {0, 0, 0};
   while (count < 5) {
     pos = getMotorPosition(1);
-    position = pos;
-    err = (target - pos);
-    dis[0] = err;
-    dis[1] = err - NAILNUM;
-    dis[2] = err + NAILNUM;
+    error = (target - pos);
+    dis[0] = error;
+    dis[1] = error - NAILNUM;
+    dis[2] = error + NAILNUM;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2 - i; j++) {
         if (fabs(dis[j]) > fabs(dis[j + 1])) {
@@ -137,23 +134,22 @@ void movePlatter(int &state, double target) {
         }
       }
     }
-    err = dis[0];
-    if (err < 0) {
+    error = dis[0];
+    if (error < 0) {
       dir = CCW;
     } else {
       dir = CW;
     }
-    v = clamp(fabs(pid[PKP] * err), 0, 100);
+    v = clamp(fabs(pid[PKP] * error), 0, 100);
     PMotors.spin(forward, dir * v, percent);
-    (fabs(err) <= PTOLERANCE) ? count++ : count = 0;
+    (fabs(error) <= pid[PEXIT]) ? count++ : count = 0;
     wait(10, msec);
-    error = err;
   }
   PMotors.stop(hold);
   wait(50, msec);
 }
 
-void moveSling(int dir) {
+void moveSling(int dir) { // Written by Aaron Lew
   int pos = SMotor.position(deg);
   int target = pos + (dir * 240);
   int error = (dir == CW) ? target - pos : pos - target;
@@ -169,22 +165,22 @@ void moveSling(int dir) {
     }
     velocity = clamp((pid[SKP] * error), 0, 100);
     (velocity > 0) ? SMotor.spin(forward, dir * velocity, pct) : SMotor.stop(hold);
-    (error <= STOLERANCE) ? count++ : count = 0;
+    (error <= pid[SEXIT]) ? count++ : count = 0;
     wait(10, msec);
   }
   SMotor.stop(hold);
   wait(50, msec);
 }
 
-void calibratePlatter(int &state) {
-  state = CALIBRATE;
+void calibratePlatter(int &state) { // Written by Aiden Tam
   int count = 0;
+  state = CALIBRATE;
   screen(state);
   touchLed(state);
   PMotors.setMaxTorque(0.01, Nm);
   PMotors.spin(forward, 20, percent);
   while (count <= 25) {
-    if ((PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
+    if (Bumper.pressing() && (PMotor1.velocity(dps) == 0) && (PMotor2.velocity(dps) == 0) &&
         (PMotor3.velocity(dps) == 0)) {
       count++;
     } else {
@@ -216,12 +212,12 @@ void calibratePlatter(int &state) {
   touchLed(state);
 }
 
-void move(int &state, int points[], int config[], int progress[]) {
-  touchLed(state);
+void move(int &state, int points[], int config[], int progress[]) { // Written by Aaron Lew
   int dir = 0;
   double move = 0;
+  touchLed(state);
   while ((state != INSERTSD || state != ERROR || state != FINISH) &&
-         (progress[LINE] < config[LINES])) {
+         (progress[LINE] <= config[LINES])) {
     int i = 4 * progress[LINE];
     if (state == RUNNING) {
       if ((points[i] != 10 && points[i] != 13) || (points[i + 1] != 10 && points[i + 1] != 13) ||
@@ -263,16 +259,17 @@ void move(int &state, int points[], int config[], int progress[]) {
     }
     wait(10, msec);
   }
+  progress[ENDTIME] = Timer.value();
   state = FINISH;
-  screen(state);
+  screen(state, progress);
   touchLed(state);
 }
 
-int main() {
+int main() { // Written by Aaron Lew
   int state = LOADFILE;
-  double pos[2] = {0, 0};
+  double position[2] = {0, 0};
   int progress[5] = {0, 0, 0, 0, 0};
-  int config[CONFIGNUM] = {0, 0, 0, 0, 0, 0, 0};
+  int config[CONFIGNUM] = {0, 0, 0, 0, 0, 0, 0, 0};
   int points[MAXPOINTS] = {0};
   color thread[4] = {};
 
@@ -284,9 +281,9 @@ int main() {
 
   while (true) {
     detectThread(state, thread);
-    updateMotorPosition(pos);
+    updateMotorPosition(position);
     move(state, points, config, progress);
-    screen(state, config, pos);
+    screen(state, config, position);
     wait(10, msec);
   }
 }
