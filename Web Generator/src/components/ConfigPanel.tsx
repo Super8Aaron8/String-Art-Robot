@@ -1,4 +1,5 @@
 import StepperField from './StepperField'
+import { LINE_WEIGHT_MIN, LINE_WEIGHT_MAX } from '../lib/patterns'
 
 interface Props {
   pegCount: number
@@ -38,8 +39,8 @@ export default function ConfigPanel({
       <StepperField
         label="Line Weight"
         value={lineWeight}
-        min={0.02}
-        max={0.3}
+        min={LINE_WEIGHT_MIN}
+        max={LINE_WEIGHT_MAX}
         step={0.01}
         format={(v) => v.toFixed(2)}
         onChange={onLineWeightChange}

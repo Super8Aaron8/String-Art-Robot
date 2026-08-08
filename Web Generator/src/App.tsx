@@ -28,7 +28,7 @@ import {
   countLines,
   defaultParams,
   exportBlocker,
-  PRESET_PREVIEW_OPACITY,
+  presetPreviewOpacity,
   type PatternParams,
   type PatternPreset,
 } from './lib/patterns'
@@ -44,6 +44,8 @@ interface Progress {
 
 export default function App() {
   const stored = useMemo(() => loadStoredConfig(), [])
+
+  const [mode, setMode] = useState<'image' | 'geometric'>('image')
 
   const [file, setFile] = useState<File | null>(null)
   const [image, setImage] = useState<HTMLImageElement | null>(null)
@@ -225,17 +227,53 @@ export default function App() {
     <div className="relative flex h-screen w-full flex-col overflow-hidden">
       <div className="grid-bg" />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center gap-1 px-5 pt-4 md:px-6">
+          {(
+            [
+              ['image', 'Image'],
+              ['geometric', 'Geometric'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setMode(id)}
+              className={`rounded-[1px] border px-4 py-2 font-mono text-[0.65rem] uppercase tracking-wide-2 transition-colors ${
+                mode === id
+                  ? 'border-red bg-bg-2 text-red'
+                  : 'border-line bg-bg-1 text-text-1 hover:border-red hover:text-red'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 md:grid-cols-[260px_300px_1fr] md:px-6">
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-            <ImageCropper
-              image={image}
-              size={WORKING_SIZE}
-              transform={transform}
-              adjustments={adjustments}
-              onFile={setFile}
-              onTransformChange={setTransform}
-            />
-            <ImageAdjustmentsPanel adjustments={adjustments} onAdjustmentsChange={setAdjustments} />
+          <div className={`flex min-h-0 flex-col gap-4 ${mode === 'image' ? 'overflow-y-auto' : ''}`}>
+            {mode === 'image' ? (
+              <>
+                <ImageCropper
+                  image={image}
+                  size={WORKING_SIZE}
+                  transform={transform}
+                  adjustments={adjustments}
+                  onFile={setFile}
+                  onTransformChange={setTransform}
+                />
+                <ImageAdjustmentsPanel adjustments={adjustments} onAdjustmentsChange={setAdjustments} />
+              </>
+            ) : (
+              <PatternPresetPanel
+                activePreset={activePreset}
+                params={patternParams}
+                pegCount={pegCount}
+                lineCount={generatedLineCount}
+                blocker={patternBlocker}
+                onApply={applyPreset}
+                onParamChange={(key, value) => setPatternParams((prev) => ({ ...prev, [key]: value }))}
+                onClear={clearPattern}
+              />
+            )}
           </div>
 
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
@@ -261,16 +299,6 @@ export default function App() {
               onMultiColorChange={handleMultiColorChange}
               onColorsChange={setColors}
               onTotalLinesChange={setTotalLines}
-            />
-            <PatternPresetPanel
-              activePreset={activePreset}
-              params={patternParams}
-              pegCount={pegCount}
-              lineCount={generatedLineCount}
-              blocker={patternBlocker}
-              onApply={applyPreset}
-              onParamChange={(key, value) => setPatternParams((prev) => ({ ...prev, [key]: value }))}
-              onClear={clearPattern}
             />
           </div>
 
@@ -317,7 +345,7 @@ export default function App() {
                   radius={radius}
                   results={previewResults}
                   screw={renderScrew}
-                  lineWeight={activePreset ? PRESET_PREVIEW_OPACITY : lineWeight}
+                  lineWeight={activePreset ? presetPreviewOpacity(lineWeight) : lineWeight}
                 />
               </div>
 
@@ -352,21 +380,27 @@ export default function App() {
             {!isFullscreen && (
               <>
                 <div className="flex shrink-0 items-center gap-3">
-                  <button
-                    onClick={() => runGenerate()}
-                    disabled={!processed || generating}
-                    className={`flex-1 rounded-[1px] border border-red bg-red px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-0 shadow-btn-cta transition-all hover:-translate-y-0.5 hover:bg-transparent hover:text-red hover:shadow-btn-cta-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${
-                      showStalePrompt ? 'animate-pulse' : ''
-                    }`}
-                  >
-                    {generating
-                      ? 'Generating…'
-                      : result && !activePreset
-                        ? isStale
-                          ? 'Regenerate*'
-                          : 'Regenerate'
-                        : 'Generate'}
-                  </button>
+                  {mode === 'image' ? (
+                    <button
+                      onClick={() => runGenerate()}
+                      disabled={!processed || generating}
+                      className={`flex-1 rounded-[1px] border border-red bg-red px-6 py-2.5 font-mono text-[0.72rem] uppercase tracking-wide-2 text-text-0 shadow-btn-cta transition-all hover:-translate-y-0.5 hover:bg-transparent hover:text-red hover:shadow-btn-cta-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${
+                        showStalePrompt ? 'animate-pulse' : ''
+                      }`}
+                    >
+                      {generating
+                        ? 'Generating…'
+                        : result && !activePreset
+                          ? isStale
+                            ? 'Regenerate*'
+                            : 'Regenerate'
+                          : 'Generate'}
+                    </button>
+                  ) : (
+                    <div className="flex flex-1 items-center justify-center rounded-[1px] border border-line-2 px-6 py-2.5 font-mono text-[0.65rem] uppercase tracking-wide-2 text-text-2">
+                      {activePreset ? 'Pattern updates live' : 'Pick a preset to begin'}
+                    </div>
+                  )}
                   <div className="w-20 shrink-0">
                     <StepperField label="Slot" value={slot} min={1} max={8} step={1} onChange={setSlot} />
                   </div>
